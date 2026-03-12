@@ -11,6 +11,11 @@ secrets.yml
 *.pem
 *.p12
 
+# 投資判断アプリのユーザーデータ
+apps/investment-tracker/data/hypotheses.json
+apps/investment-tracker/data/trading_history.json
+apps/investment-tracker/.streamlit/secrets.toml
+
 # ========================================
 # 大容量データ（Gitで管理しない）
 # ========================================
@@ -34,6 +39,7 @@ legacy/
 __pycache__/
 *.py[cod]
 *$py.class
+.pytest_cache/
 *.so
 .Python
 build/
