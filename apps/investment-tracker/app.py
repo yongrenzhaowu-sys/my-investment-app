@@ -76,6 +76,9 @@ def save_hypotheses(hypotheses):
         client = get_simple_gsheets_client()
         if client:
             client.save_hypotheses(hypotheses)
+            # Google Sheetsの公開反映を待つ（重要！）
+            import time
+            time.sleep(3)  # 3秒待機してCSV公開が反映されるのを待つ
         else:
             st.error("Google Sheets接続エラー。ローカルJSONにフォールバック。")
             save_hypotheses_local(hypotheses)
@@ -210,7 +213,9 @@ def render_sidebar():
 
                     hypotheses = load_hypotheses()
                     hypotheses.append(new_hypothesis)
-                    save_hypotheses(hypotheses)
+
+                    with st.spinner("データを保存中..."):
+                        save_hypotheses(hypotheses)
 
                     st.success(f"✅ {company_name} を登録しました")
                     st.rerun()
