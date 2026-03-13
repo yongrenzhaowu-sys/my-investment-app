@@ -42,46 +42,53 @@ class SimpleGSheetsClient:
 
             # DataFrameを辞書のリストに変換
             hypotheses = []
-            for _, row in df.iterrows():
-                # NaN値をスキップ
-                if pd.isna(row.get("id")):
-                    continue
+            for idx, row in df.iterrows():
+                try:
+                    # NaN値をスキップ
+                    if pd.isna(row.get("id")):
+                        continue
 
-                # exit_kpiをJSON文字列から辞書に変換
-                exit_kpi_str = row.get("exit_kpi", "{}")
-                if pd.isna(exit_kpi_str):
-                    exit_kpi = {
-                        "metric": "operating_margin",
-                        "threshold": 10.0,
-                        "operator": "less_than"
-                    }
-                else:
-                    try:
-                        exit_kpi = json.loads(exit_kpi_str)
-                    except:
+                    # exit_kpiをJSON文字列から辞書に変換
+                    exit_kpi_str = row.get("exit_kpi", "{}")
+                    if pd.isna(exit_kpi_str):
                         exit_kpi = {
                             "metric": "operating_margin",
                             "threshold": 10.0,
                             "operator": "less_than"
                         }
+                    else:
+                        try:
+                            exit_kpi = json.loads(exit_kpi_str)
+                        except Exception as e:
+                            st.warning(f"行{idx}: exit_kpi解析エラー: {e}")
+                            exit_kpi = {
+                                "metric": "operating_margin",
+                                "threshold": 10.0,
+                                "operator": "less_than"
+                            }
 
-                # sharesフィールドの処理（NaNチェック）
-                shares_value = row.get("shares", 100)
-                if pd.isna(shares_value):
-                    shares_value = 100
+                    # sharesフィールドの処理（NaNチェック）
+                    shares_value = row.get("shares", 100)
+                    if pd.isna(shares_value):
+                        shares_value = 100
 
-                hypothesis = {
-                    "id": str(row["id"]),
-                    "code": str(row["code"]),
-                    "name": str(row.get("name", "")),
-                    "purchase_date": str(row["purchase_date"]),
-                    "purchase_price": float(row["purchase_price"]),
-                    "shares": int(shares_value),
-                    "reason": str(row.get("reason", "")),
-                    "exit_kpi": exit_kpi,
-                    "created_at": str(row.get("created_at", ""))
-                }
-                hypotheses.append(hypothesis)
+                    hypothesis = {
+                        "id": str(row["id"]),
+                        "code": str(row["code"]),
+                        "name": str(row.get("name", "")),
+                        "purchase_date": str(row["purchase_date"]),
+                        "purchase_price": float(row["purchase_price"]),
+                        "shares": int(shares_value),
+                        "reason": str(row.get("reason", "")),
+                        "exit_kpi": exit_kpi,
+                        "created_at": str(row.get("created_at", ""))
+                    }
+                    hypotheses.append(hypothesis)
+
+                except Exception as e:
+                    # 個別行のエラーをログに記録してスキップ
+                    st.warning(f"行{idx}のデータ読み込みエラー（スキップ）: {e}")
+                    continue
 
             return hypotheses
 
