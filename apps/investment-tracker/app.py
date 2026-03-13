@@ -75,10 +75,26 @@ def save_hypotheses(hypotheses):
         # シンプルなGoogle Sheetsクライアントに保存
         client = get_simple_gsheets_client()
         if client:
+            expected_count = len(hypotheses)
             client.save_hypotheses(hypotheses)
+
             # Google Sheetsの公開反映を待つ（重要！）
             import time
-            time.sleep(3)  # 3秒待機してCSV公開が反映されるのを待つ
+            max_wait = 10  # 最大10秒待つ
+            wait_interval = 2  # 2秒ごとにチェック
+
+            for i in range(max_wait // wait_interval):
+                time.sleep(wait_interval)
+
+                # データが反映されたか確認
+                loaded = client.load_hypotheses()
+                if len(loaded) == expected_count:
+                    # 反映完了
+                    break
+
+            # 最終確認
+            if len(loaded) != expected_count:
+                st.warning(f"⚠️ データの反映に時間がかかっています（期待: {expected_count}件、実際: {len(loaded)}件）")
         else:
             st.error("Google Sheets接続エラー。ローカルJSONにフォールバック。")
             save_hypotheses_local(hypotheses)
