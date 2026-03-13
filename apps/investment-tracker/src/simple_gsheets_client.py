@@ -33,8 +33,13 @@ class SimpleGSheetsClient:
             仮説データのリスト
         """
         try:
+            # キャッシュ回避のため、URLにタイムスタンプを追加
+            import time
+            cache_buster = f"?_={int(time.time() * 1000)}"
+            url_with_cache_buster = self.read_url + ("&" if "?" in self.read_url else "?") + f"_={int(time.time() * 1000)}"
+
             # pandasでCSVとして読み込み
-            df = pd.read_csv(self.read_url)
+            df = pd.read_csv(url_with_cache_buster)
 
             # 空のシートの場合
             if df.empty:
