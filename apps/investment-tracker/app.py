@@ -48,17 +48,26 @@ def use_gsheets() -> bool:
 
 def load_hypotheses():
     """仮説データを読み込み（Google Sheets or ローカルJSON）"""
+    # セッション状態にキャッシュがあればそれを使う（最優先）
+    if "hypotheses_cache" in st.session_state:
+        return st.session_state.hypotheses_cache
+
+    # キャッシュがない場合のみ、外部から読み込む
     if use_gsheets():
         # シンプルなGoogle Sheetsクライアントから読み込み
         client = get_simple_gsheets_client()
         if client:
-            return client.load_hypotheses()
+            hypotheses = client.load_hypotheses()
         else:
             st.error("Google Sheets接続エラー。ローカルJSONにフォールバック。")
-            return load_hypotheses_local()
+            hypotheses = load_hypotheses_local()
     else:
         # ローカルJSONから読み込み
-        return load_hypotheses_local()
+        hypotheses = load_hypotheses_local()
+
+    # セッション状態にキャッシュ
+    st.session_state.hypotheses_cache = hypotheses
+    return hypotheses
 
 
 def load_hypotheses_local():
@@ -71,30 +80,17 @@ def load_hypotheses_local():
 
 def save_hypotheses(hypotheses):
     """仮説データを保存（Google Sheets or ローカルJSON）"""
+    # まずセッション状態を更新（即座に反映）
+    st.session_state.hypotheses_cache = hypotheses
+
+    # 次に永続化ストレージに保存（バックグラウンド）
     if use_gsheets():
         # シンプルなGoogle Sheetsクライアントに保存
         client = get_simple_gsheets_client()
         if client:
-            expected_count = len(hypotheses)
             client.save_hypotheses(hypotheses)
-
-            # Google Sheetsの公開反映を待つ（重要！）
-            import time
-            max_wait = 10  # 最大10秒待つ
-            wait_interval = 2  # 2秒ごとにチェック
-
-            for i in range(max_wait // wait_interval):
-                time.sleep(wait_interval)
-
-                # データが反映されたか確認
-                loaded = client.load_hypotheses()
-                if len(loaded) == expected_count:
-                    # 反映完了
-                    break
-
-            # 最終確認
-            if len(loaded) != expected_count:
-                st.warning(f"⚠️ データの反映に時間がかかっています（期待: {expected_count}件、実際: {len(loaded)}件）")
+            # 注: Google Sheetsへの保存は非同期的に行われる
+            # セッション状態をマスターデータとするため、反映を待つ必要はない
         else:
             st.error("Google Sheets接続エラー。ローカルJSONにフォールバック。")
             save_hypotheses_local(hypotheses)
@@ -229,9 +225,7 @@ def render_sidebar():
 
                     hypotheses = load_hypotheses()
                     hypotheses.append(new_hypothesis)
-
-                    with st.spinner("データを保存中..."):
-                        save_hypotheses(hypotheses)
+                    save_hypotheses(hypotheses)
 
                     st.success(f"✅ {company_name} を登録しました")
                     st.rerun()
