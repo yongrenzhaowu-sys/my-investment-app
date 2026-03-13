@@ -65,13 +65,18 @@ class SimpleGSheetsClient:
                             "operator": "less_than"
                         }
 
+                # sharesフィールドの処理（NaNチェック）
+                shares_value = row.get("shares", 100)
+                if pd.isna(shares_value):
+                    shares_value = 100
+
                 hypothesis = {
                     "id": str(row["id"]),
                     "code": str(row["code"]),
                     "name": str(row.get("name", "")),
                     "purchase_date": str(row["purchase_date"]),
                     "purchase_price": float(row["purchase_price"]),
-                    "shares": int(row.get("shares", 100)),
+                    "shares": int(shares_value),
                     "reason": str(row.get("reason", "")),
                     "exit_kpi": exit_kpi,
                     "created_at": str(row.get("created_at", ""))
