@@ -18,7 +18,7 @@ function doPost(e) {
       sheet = ss.insertSheet("hypotheses");
       // ヘッダー行を作成
       sheet.appendRow([
-        "id", "code", "name", "purchase_date", "purchase_price",
+        "id", "code", "name", "purchase_date", "purchase_price", "shares",
         "reason", "exit_kpi", "created_at"
       ]);
     }
@@ -71,6 +71,7 @@ function overwriteData(sheet, hypotheses) {
       hypo.name || "",
       hypo.purchase_date,
       hypo.purchase_price,
+      hypo.shares || 100,
       hypo.reason || "",
       exitKpiStr,
       hypo.created_at || ""
@@ -92,6 +93,7 @@ function appendRow(sheet, hypothesis) {
     hypothesis.name || "",
     hypothesis.purchase_date,
     hypothesis.purchase_price,
+    hypothesis.shares || 100,
     hypothesis.reason || "",
     exitKpiStr,
     hypothesis.created_at || ""

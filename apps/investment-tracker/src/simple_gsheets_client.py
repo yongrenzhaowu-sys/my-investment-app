@@ -71,6 +71,7 @@ class SimpleGSheetsClient:
                     "name": str(row.get("name", "")),
                     "purchase_date": str(row["purchase_date"]),
                     "purchase_price": float(row["purchase_price"]),
+                    "shares": int(row.get("shares", 100)),
                     "reason": str(row.get("reason", "")),
                     "exit_kpi": exit_kpi,
                     "created_at": str(row.get("created_at", ""))

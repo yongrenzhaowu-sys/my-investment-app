@@ -18,11 +18,11 @@ Google Cloudの複雑な設定を避けて、シンプルにGoogle Sheetsをデ�
 2. 新しいスプレッドシートを作成
 3. スプレッドシート名: `investment-tracker-data`（任意）
 4. シート名を「**hypotheses**」に変更（重要）
-5. ヘッダー行を作成（A1〜H1に以下を入力）:
+5. ヘッダー行を作成（A1〜I1に以下を入力）:
 
-| A | B | C | D | E | F | G | H |
-|---|---|---|---|---|---|---|---|
-| id | code | name | purchase_date | purchase_price | reason | exit_kpi | created_at |
+| A | B | C | D | E | F | G | H | I |
+|---|---|---|---|---|---|---|---|---|
+| id | code | name | purchase_date | purchase_price | shares | reason | exit_kpi | created_at |
 
 ### 2. スプレッドシートをウェブに公開（読み込み用）
 
@@ -63,7 +63,7 @@ function doPost(e) {
     if (!sheet) {
       sheet = ss.insertSheet("hypotheses");
       sheet.appendRow([
-        "id", "code", "name", "purchase_date", "purchase_price",
+        "id", "code", "name", "purchase_date", "purchase_price", "shares",
         "reason", "exit_kpi", "created_at"
       ]);
     }
@@ -96,7 +96,7 @@ function overwriteData(sheet, hypotheses) {
 
     sheet.appendRow([
       hypo.id, hypo.code, hypo.name || "",
-      hypo.purchase_date, hypo.purchase_price,
+      hypo.purchase_date, hypo.purchase_price, hypo.shares || 100,
       hypo.reason || "", exitKpiStr, hypo.created_at || ""
     ]);
   });
