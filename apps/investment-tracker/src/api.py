@@ -184,17 +184,22 @@ class JQuantsClient:
 
             data = response.json()
 
-            # レスポンス形式を確認
-            if "info" in data and len(data["info"]) > 0:
+            # V2のレスポンス形式: {"data": [...]}
+            if "data" in data and len(data["data"]) > 0:
+                return data["data"][0]
+            # V1互換のレスポンス形式
+            elif "info" in data and len(data["info"]) > 0:
                 return data["info"][0]
             elif "listed_info" in data and len(data["listed_info"]) > 0:
                 return data["listed_info"][0]
             elif isinstance(data, list) and len(data) > 0:
                 return data[0]
 
-            # データが見つからない場合は空辞書
-            return {}
+            # データが見つからない場合
+            print(f"⚠️ 銘柄情報が見つかりません（コード: {code}）")
+            return {"Code": code, "CompanyName": f"銘柄{code}"}
 
         except requests.exceptions.RequestException as e:
-            # エラー時は銘柄コードだけ返す
+            # エラー時
+            print(f"⚠️ 銘柄情報取得エラー（コード: {code}）: {e}")
             return {"Code": code, "CompanyName": f"銘柄{code}"}
