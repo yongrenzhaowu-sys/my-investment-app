@@ -22,6 +22,13 @@ from src.profit_calculator import (
     calculate_yearly_profit
 )
 from src.settings import load_settings, save_settings
+from src.metrics import (
+    calculate_sharpe_ratio,
+    calculate_max_drawdown,
+    calculate_win_rate,
+    calculate_avg_holding_days,
+    calculate_total_return
+)
 
 # ページ設定（モバイル最適化）
 st.set_page_config(
@@ -775,6 +782,68 @@ def render_profit_summary():
         st.metric("累計売却額", f"¥{available['cumulative_sales']:,.0f}")
     with col4:
         st.metric("余力", f"¥{available['available_capital']:,.0f}")
+
+    st.divider()
+
+    # 投資指標
+    st.subheader("📈 投資指標")
+
+    # 売買履歴を取得
+    trading_history = load_trading_history()
+
+    # 指標を計算
+    if trading_history:
+        # リターンのリストを作成（売買履歴から）
+        returns = [record.get("realized_profit_rate", 0) for record in trading_history]
+
+        # シャープレシオ
+        sharpe = calculate_sharpe_ratio(returns)
+
+        # 勝率
+        win_rate = calculate_win_rate(trading_history)
+
+        # 平均保有日数
+        avg_holding_days = calculate_avg_holding_days(trading_history)
+    else:
+        sharpe = 0.0
+        win_rate = 0.0
+        avg_holding_days = 0.0
+
+    # 累計リターン
+    total_return = calculate_total_return(
+        available['initial_capital'],
+        available['current_investment'],
+        unrealized['total_unrealized'],
+        available['cumulative_sales']
+    )
+
+    # 最大ドローダウン（ポートフォリオ価値の時系列が必要）
+    # 簡易版: 含み損益が最も悪い銘柄のドローダウンを使用
+    if unrealized['details']:
+        max_dd = max(
+            abs(min(detail['unrealized_profit_rate'] for detail in unrealized['details'])),
+            0
+        )
+    else:
+        max_dd = 0.0
+
+    # 表示
+    col1, col2, col3, col4, col5 = st.columns(5)
+
+    with col1:
+        st.metric("累計リターン", f"{total_return:+.2f}%", help="初期資金からの総合リターン")
+
+    with col2:
+        st.metric("シャープレシオ", f"{sharpe:.2f}", help="リスク調整後リターン（高いほど良い）")
+
+    with col3:
+        st.metric("勝率", f"{win_rate:.1f}%", help="利益が出た取引の割合")
+
+    with col4:
+        st.metric("平均保有日数", f"{avg_holding_days:.0f}日", help="売却した銘柄の平均保有期間")
+
+    with col5:
+        st.metric("最大DD", f"{max_dd:.2f}%", help="最大下落率（低いほど良い）")
 
     st.divider()
 
