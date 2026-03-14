@@ -21,6 +21,7 @@ from src.profit_calculator import (
     calculate_available_capital,
     calculate_yearly_profit
 )
+from src.settings import load_settings, save_settings
 
 # ページ設定（モバイル最適化）
 st.set_page_config(
@@ -690,20 +691,31 @@ def render_profit_summary():
     # 余力
     st.subheader("💵 余力（投資可能額）")
 
-    # 初期資金の設定（セッション状態で管理）
+    # 初期資金の設定（settings.jsonに永続化）
     if "initial_capital" not in st.session_state:
-        st.session_state.initial_capital = 1_000_000  # デフォルト: 100万円
+        # settings.jsonから読み込み
+        settings = load_settings()
+        st.session_state.initial_capital = settings.get("initial_capital", 1_000_000)
 
     with st.expander("⚙️ 初期資金設定"):
         new_capital = st.number_input(
             "初期資金（円）",
             min_value=0,
             value=st.session_state.initial_capital,
-            step=100_000
+            step=100_000,
+            help="ログイン後も保持されます"
         )
-        if st.button("更新"):
+        if st.button("更新", key="update_initial_capital"):
+            # セッション状態を更新
             st.session_state.initial_capital = new_capital
-            st.success("初期資金を更新しました")
+
+            # settings.jsonに保存
+            settings = load_settings()
+            settings["initial_capital"] = new_capital
+            if save_settings(settings):
+                st.success("✅ 初期資金を更新しました（永続化済み）")
+            else:
+                st.warning("⚠️ 初期資金を更新しました（永続化に失敗）")
             st.rerun()
 
     available = calculate_available_capital(hypotheses, st.session_state.initial_capital)

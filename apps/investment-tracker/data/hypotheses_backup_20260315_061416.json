@@ -1,0 +1,17 @@
+[
+  {
+    "id": "eeb61cc3-b0e8-4238-9307-6e6c79267c9b",
+    "code": "16630",
+    "name": "銘柄16630",
+    "purchase_date": "2026-02-26",
+    "purchase_price": 5066,
+    "shares": 100,
+    "reason": "よしきさん推奨(理解してない)",
+    "exit_kpi": {
+      "metric": "operating_margin",
+      "threshold": 10.0,
+      "operator": "less_than"
+    },
+    "created_at": "2026-03-13T04:12:59.347948"
+  }
+]
