@@ -568,8 +568,19 @@ def render_sell_form(hypothesis_id: str):
     with st.form("sell_form"):
         st.subheader("売却情報")
 
+        # 保有株数
+        total_shares = hypo.get("shares", 100)
+
         sell_date = st.date_input("売却日", value=datetime.now())
         sell_price = st.number_input("売却価格（円）", min_value=1, value=int(hypo["purchase_price"]))
+        sell_shares = st.number_input(
+            "売却数量（株）",
+            min_value=1,
+            max_value=total_shares,
+            value=total_shares,
+            step=100,
+            help=f"保有株数: {total_shares:,}株"
+        )
         sell_reason = st.text_area(
             "売却理由",
             placeholder="例: 目標価格到達、損切り、資金需要、KPI未達成など..."
@@ -577,15 +588,19 @@ def render_sell_form(hypothesis_id: str):
 
         st.divider()
 
-        # 予想損益を表示（株数を考慮）
-        shares = hypo.get("shares", 100)
+        # 予想損益を表示（売却数量を考慮）
         expected_profit_per_share = sell_price - hypo["purchase_price"]
-        expected_profit = expected_profit_per_share * shares
+        expected_profit = expected_profit_per_share * sell_shares
         expected_profit_rate = (expected_profit_per_share / hypo["purchase_price"]) * 100 if hypo["purchase_price"] > 0 else 0
         expected_tax = max(0, expected_profit * 0.20315)
         expected_after_tax = expected_profit - expected_tax
 
-        st.info(f"**保有株数**: {shares:,}株")
+        # 残株数を表示
+        remaining_shares = total_shares - sell_shares
+        if remaining_shares > 0:
+            st.info(f"**売却後の残株数**: {remaining_shares:,}株（保有継続）")
+        else:
+            st.warning(f"**全株売却**: 仮説一覧から削除されます")
 
         col1, col2 = st.columns(2)
         with col1:
@@ -604,19 +619,34 @@ def render_sell_form(hypothesis_id: str):
                 st.error("売却日は購入日以降にしてください")
             else:
                 try:
-                    # 売却記録を追加
+                    # 売却記録を追加（売却数量を指定）
                     record = add_sell_record(
                         hypo,
                         sell_date.strftime("%Y-%m-%d"),
                         sell_price,
-                        sell_reason
+                        sell_reason,
+                        sell_shares=sell_shares
                     )
 
-                    # 仮説から削除
-                    hypotheses = [h for h in hypotheses if h["id"] != hypothesis_id]
-                    save_hypotheses(hypotheses)
+                    # 残株数を計算
+                    remaining_shares = total_shares - sell_shares
 
-                    st.success(f"✅ {hypo['name']} を売却しました")
+                    if remaining_shares > 0:
+                        # 部分売却: 仮説の株数を更新
+                        for h in hypotheses:
+                            if h["id"] == hypothesis_id:
+                                h["shares"] = remaining_shares
+                                break
+                        save_hypotheses(hypotheses)
+
+                        st.success(f"✅ {hypo['name']} を{sell_shares:,}株売却しました（残{remaining_shares:,}株）")
+                    else:
+                        # 全株売却: 仮説から削除
+                        hypotheses = [h for h in hypotheses if h["id"] != hypothesis_id]
+                        save_hypotheses(hypotheses)
+
+                        st.success(f"✅ {hypo['name']} を全株売却しました")
+
                     st.success(f"実現損益: ¥{record.realized_profit:,.0f} ({record.realized_profit_rate:+.2f}%)")
                     st.success(f"税引き後利益: ¥{record.after_tax_profit:,.0f}")
 

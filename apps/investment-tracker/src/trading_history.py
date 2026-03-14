@@ -64,7 +64,8 @@ def add_sell_record(
     hypothesis: Dict,
     sell_date: str,
     sell_price: float,
-    sell_reason: str
+    sell_reason: str,
+    sell_shares: int = None
 ) -> TradingRecord:
     """
     売却記録を追加
@@ -74,12 +75,16 @@ def add_sell_record(
         sell_date: 売却日（YYYY-MM-DD）
         sell_price: 売却価格（円/株）
         sell_reason: 売却理由
+        sell_shares: 売却数量（株）。Noneの場合は全株売却
 
     Returns:
         TradingRecord オブジェクト
     """
     # 株数を取得（デフォルト100株）
-    shares = hypothesis.get("shares", 100)
+    total_shares = hypothesis.get("shares", 100)
+
+    # 売却数量（Noneの場合は全株）
+    shares = sell_shares if sell_shares is not None else total_shares
 
     # 実現損益を計算（株数を考慮）
     purchase_price = hypothesis["purchase_price"]
