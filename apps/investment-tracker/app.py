@@ -189,6 +189,7 @@ def render_sidebar():
         purchase_date = st.date_input("購入日", value=datetime.now())
         purchase_price = st.number_input("購入価格（円/株）", min_value=1, value=1000)
         shares = st.number_input("購入数量（株）", min_value=1, value=100, step=100)
+        is_nisa = st.checkbox("NISA口座", value=False, help="NISA口座の場合、売却時の税金が0%になります")
         reason = st.text_area("購入理由", placeholder="中計で注目している点など...")
 
         st.subheader("撤退KPI")
@@ -215,6 +216,7 @@ def render_sidebar():
                         "purchase_date": purchase_date.strftime("%Y-%m-%d"),
                         "purchase_price": purchase_price,
                         "shares": shares,
+                        "is_nisa": is_nisa,
                         "reason": reason,
                         "exit_kpi": {
                             "metric": "operating_margin",
@@ -588,11 +590,22 @@ def render_sell_form(hypothesis_id: str):
 
         st.divider()
 
+        # NISA口座フラグを取得
+        is_nisa = hypo.get("is_nisa", False)
+
         # 予想損益を表示（売却数量を考慮）
         expected_profit_per_share = sell_price - hypo["purchase_price"]
         expected_profit = expected_profit_per_share * sell_shares
         expected_profit_rate = (expected_profit_per_share / hypo["purchase_price"]) * 100 if hypo["purchase_price"] > 0 else 0
-        expected_tax = max(0, expected_profit * 0.20315)
+
+        # 税金計算（NISA口座の場合は0%）
+        if is_nisa:
+            expected_tax = 0.0
+            st.success("✅ NISA口座（税金0%）")
+        else:
+            expected_tax = max(0, expected_profit * 0.20315)
+            st.info("課税口座（税率20.315%）")
+
         expected_after_tax = expected_profit - expected_tax
 
         # 残株数を表示
@@ -608,7 +621,10 @@ def render_sell_form(hypothesis_id: str):
         with col2:
             st.metric("税引き後利益", f"¥{expected_after_tax:,.0f}")
 
-        st.caption(f"税金: ¥{expected_tax:,.0f} (20.315%) | 1株あたり損益: ¥{expected_profit_per_share:,.0f}")
+        if is_nisa:
+            st.caption(f"税金: ¥0（NISA口座）| 1株あたり損益: ¥{expected_profit_per_share:,.0f}")
+        else:
+            st.caption(f"税金: ¥{expected_tax:,.0f} (20.315%) | 1株あたり損益: ¥{expected_profit_per_share:,.0f}")
 
         submitted = st.form_submit_button("✅ 売却を確定", type="primary", width="stretch")
 

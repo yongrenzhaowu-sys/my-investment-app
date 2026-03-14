@@ -86,14 +86,17 @@ def add_sell_record(
     # 売却数量（Noneの場合は全株）
     shares = sell_shares if sell_shares is not None else total_shares
 
+    # NISA口座フラグを取得
+    is_nisa = hypothesis.get("is_nisa", False)
+
     # 実現損益を計算（株数を考慮）
     purchase_price = hypothesis["purchase_price"]
     realized_profit_per_share = sell_price - purchase_price
     realized_profit = realized_profit_per_share * shares
     realized_profit_rate = (realized_profit_per_share / purchase_price) * 100 if purchase_price > 0 else 0
 
-    # 税金を計算
-    tax_amount = calculate_tax(realized_profit)
+    # 税金を計算（NISA口座の場合は0%）
+    tax_amount = calculate_tax(realized_profit, is_nisa=is_nisa)
     after_tax_profit = realized_profit - tax_amount
 
     # 保有日数を計算
@@ -119,7 +122,8 @@ def add_sell_record(
         original_hypothesis_id=hypothesis["id"],
         created_at=hypothesis.get("created_at", datetime.now().isoformat()),
         sold_at=datetime.now().isoformat(),
-        kpi_threshold=hypothesis.get("kpi_threshold")
+        kpi_threshold=hypothesis.get("kpi_threshold"),
+        is_nisa=is_nisa
     )
 
     # 履歴を読み込み、追加、保存

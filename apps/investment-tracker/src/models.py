@@ -26,6 +26,7 @@ class TradingRecord:
     created_at: str
     sold_at: str
     kpi_threshold: Optional[float] = None
+    is_nisa: bool = False  # NISA口座フラグ
 
     def to_dict(self):
         """辞書形式に変換"""
@@ -48,11 +49,12 @@ class TradingRecord:
             "original_hypothesis_id": self.original_hypothesis_id,
             "created_at": self.created_at,
             "sold_at": self.sold_at,
-            "kpi_threshold": self.kpi_threshold
+            "kpi_threshold": self.kpi_threshold,
+            "is_nisa": self.is_nisa
         }
 
 
-def calculate_tax(profit: float) -> float:
+def calculate_tax(profit: float, is_nisa: bool = False) -> float:
     """
     株式譲渡所得税を計算
 
@@ -62,13 +64,16 @@ def calculate_tax(profit: float) -> float:
     - 復興特別所得税: 0.315%
     - 合計: 20.315%
 
+    NISA口座の場合は非課税（税金0%）
+
     Args:
         profit: 実現損益（売却価格 - 購入価格）
+        is_nisa: NISA口座フラグ（デフォルト: False）
 
     Returns:
-        税金額（損失時は0）
+        税金額（損失時またはNISA口座の場合は0）
     """
-    if profit <= 0:
+    if profit <= 0 or is_nisa:
         return 0.0
 
     tax_rate = 0.20315
