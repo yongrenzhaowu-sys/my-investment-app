@@ -196,10 +196,10 @@ class JQuantsClient:
                 return data[0]
 
             # データが見つからない場合
-            print(f"⚠️ 銘柄情報が見つかりません（コード: {code}）")
+            print(f"WARNING: 銘柄情報が見つかりません（コード: {code}）")
             return {"Code": code, "CompanyName": f"銘柄{code}"}
 
         except requests.exceptions.RequestException as e:
             # エラー時
-            print(f"⚠️ 銘柄情報取得エラー（コード: {code}）: {e}")
+            print(f"WARNING: 銘柄情報取得エラー（コード: {code}）: {e}")
             return {"Code": code, "CompanyName": f"銘柄{code}"}
