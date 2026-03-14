@@ -171,7 +171,8 @@ class JQuantsClient:
         Returns:
             銘柄情報辞書（CompanyName含む）
         """
-        url = f"{self.BASE_URL}/listed/info"
+        # V2では /listed/info → /equities/master に変更
+        url = f"{self.BASE_URL}/equities/master"
 
         # 5桁コードの場合は4桁に変換
         code_param = code[:4] if len(code) == 5 else code
@@ -186,7 +187,11 @@ class JQuantsClient:
 
             # V2のレスポンス形式: {"data": [...]}
             if "data" in data and len(data["data"]) > 0:
-                return data["data"][0]
+                company_data = data["data"][0]
+                # V2では CoName が会社名（CompanyName に正規化）
+                if "CoName" in company_data and "CompanyName" not in company_data:
+                    company_data["CompanyName"] = company_data["CoName"]
+                return company_data
             # V1互換のレスポンス形式
             elif "info" in data and len(data["info"]) > 0:
                 return data["info"][0]
