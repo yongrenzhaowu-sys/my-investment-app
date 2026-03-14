@@ -137,16 +137,20 @@ response = requests.get(url, params=params, headers=headers)
 
 ---
 
-### 3. 銘柄情報
+### 3. 銘柄情報（マスターデータ）
 
-**エンドポイント**: `/listed/info`
+**エンドポイント**: `/equities/master` ⚠️ **V2で変更**
+
+**V1→V2の変更**:
+- V1: `/v1/listed/info`
+- V2: `/v2/equities/master`
 
 **パラメータ**:
 - `code`: 銘柄コード（4桁、例: `7203`）
 
 **リクエスト例**:
 ```python
-url = "https://api.jquants.com/v2/listed/info"
+url = "https://api.jquants.com/v2/equities/master"
 params = {"code": "7203"}
 headers = {"x-api-key": "your_api_key"}
 response = requests.get(url, params=params, headers=headers)
@@ -157,13 +161,30 @@ response = requests.get(url, params=params, headers=headers)
 {
   "data": [
     {
+      "Date": "2026-03-16",
       "Code": "72030",
-      "CompanyName": "トヨタ自動車株式会社",
-      "MarketCode": "111"
+      "CoName": "トヨタ自動車",
+      "CoNameEn": "TOYOTA MOTOR CORPORATION",
+      "S17": "6",
+      "S17Nm": "輸送用機器",
+      "S33": "3700",
+      "S33Nm": "輸送用機器",
+      "ScaleCat": "TOPIX Core30",
+      "Mkt": "0111",
+      "MktNm": "プライム",
+      "Mrgn": "2",
+      "MrgnNm": "制度"
     }
   ]
 }
 ```
+
+**主要列**:
+- `Code`: 銘柄コード（5桁）
+- `CoName`: 会社名（日本語）⚠️ **V1では `CompanyName`**
+- `CoNameEn`: 会社名（英語）
+- `Mkt`: 市場コード
+- `MktNm`: 市場名
 
 ---
 
@@ -173,7 +194,7 @@ response = requests.get(url, params=params, headers=headers)
 |------|-----------------|-----------------|
 | 株価四本値 | `/prices/daily_quotes` | `/equities/bars/daily` |
 | 財務サマリー | `/fins/statements` | `/fins/summary` |
-| 銘柄一覧 | `/listed/info` | `/listed/info` |
+| 銘柄マスター | `/listed/info` | `/equities/master` ⚠️ **変更** |
 
 | 項目 | V1 | V2 |
 |------|----|----|
