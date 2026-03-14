@@ -248,7 +248,47 @@ def render_hypothesis_list():
         st.info("まだ仮説が登録されていません。サイドバーから登録してください。")
         return
 
-    st.header("📊 保有銘柄一覧")
+    # ヘッダーと一括更新ボタン
+    col_header, col_button = st.columns([3, 1])
+
+    with col_header:
+        st.header("📊 保有銘柄一覧")
+
+    with col_button:
+        if st.button("🔄 銘柄名更新", help="全銘柄の名前を最新情報に更新", type="secondary"):
+            # 一括更新処理
+            with st.spinner("銘柄名を更新中..."):
+                updated_count = 0
+                error_count = 0
+
+                for hypo in hypotheses:
+                    try:
+                        # 銘柄情報を再取得
+                        company_info = st.session_state.client.get_company_info(hypo["code"])
+                        new_name = company_info.get("CompanyName", f"銘柄{hypo['code']}")
+
+                        # 名前が変わった場合のみ更新
+                        if new_name != hypo.get("name", ""):
+                            hypo["name"] = new_name
+                            updated_count += 1
+                    except Exception as e:
+                        error_count += 1
+                        st.warning(f"銘柄 {hypo['code']} の更新に失敗: {e}")
+
+                # 保存
+                save_hypotheses(hypotheses)
+
+                # 結果表示
+                if updated_count > 0:
+                    st.success(f"✅ {updated_count}件の銘柄名を更新しました")
+                else:
+                    st.info("更新対象がありませんでした")
+
+                if error_count > 0:
+                    st.error(f"❌ {error_count}件のエラーが発生しました")
+
+                # 画面を再描画
+                st.rerun()
 
     for hypo in hypotheses:
         with st.expander(f"**{hypo['name']}** ({hypo['code']})", expanded=False):
