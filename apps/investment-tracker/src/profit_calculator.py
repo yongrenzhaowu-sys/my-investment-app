@@ -160,15 +160,27 @@ def calculate_available_capital(
         hypo["purchase_price"] * hypo.get("shares", 100) for hypo in hypotheses
     )
 
-    # 累計売却額（税引き後）
+    # 売買履歴を読み込み
     history = load_trading_history()
+
+    # 累計売却額（税引き後）= 売却で得た現金の合計
+    # 現金 = 売却銘柄の取得額（購入価格 × 株数）+ 税引き後利益
     cumulative_sales = sum(
-        record["sell_price"] - record["tax_amount"]
+        record["purchase_price"] * record["shares"] + record["after_tax_profit"]
         for record in history
     )
 
-    # 余力
-    available_capital = initial_capital - current_investment + cumulative_sales
+    # 売却済み銘柄の購入時投資額の合計
+    sold_purchase_amount = sum(
+        record["purchase_price"] * record["shares"]
+        for record in history
+    )
+
+    # 余力の計算
+    # 方法: 初期資金 - 現在保有額 - 売却済み銘柄の購入時投資額 + 累計売却額
+    # = 初期資金 - 現在保有額 - 売却済み購入額 + (売却済み購入額 + 税引き後利益)
+    # = 初期資金 - 現在保有額 + 税引き後利益
+    available_capital = initial_capital - current_investment - sold_purchase_amount + cumulative_sales
 
     return {
         "initial_capital": initial_capital,

@@ -6,6 +6,24 @@ from datetime import datetime
 import uuid
 from .models import TradingRecord, calculate_tax, calculate_holding_days
 
+# Google Sheets対応のためのインポート
+try:
+    import streamlit as st
+    STREAMLIT_AVAILABLE = True
+except ImportError:
+    STREAMLIT_AVAILABLE = False
+
+
+def use_gsheets() -> bool:
+    """Google Sheetsを使用するか判定"""
+    if not STREAMLIT_AVAILABLE:
+        return False
+
+    try:
+        return st.secrets.get("USE_GSHEETS", False)
+    except:
+        return False
+
 
 def get_trading_history_path() -> str:
     """売買履歴ファイルのパスを取得"""
@@ -21,7 +39,32 @@ def get_trading_history_path() -> str:
 
 def load_trading_history() -> List[Dict]:
     """
-    売買履歴を読み込む
+    売買履歴を読み込む（Google Sheets or ローカルJSON）
+
+    Returns:
+        売買履歴のリスト
+    """
+    # Google Sheetsを使用する場合
+    if use_gsheets():
+        try:
+            from .simple_gsheets_client import get_simple_gsheets_client
+            client = get_simple_gsheets_client()
+            if client:
+                return client.load_trading_history()
+            else:
+                # Google Sheetsが使えない場合はローカルにフォールバック
+                return load_trading_history_local()
+        except Exception as e:
+            print(f"Google Sheetsからの読み込みエラー: {e}")
+            return load_trading_history_local()
+    else:
+        # ローカルJSONから読み込み
+        return load_trading_history_local()
+
+
+def load_trading_history_local() -> List[Dict]:
+    """
+    ローカルJSONファイルから売買履歴を読み込む
 
     Returns:
         売買履歴のリスト
@@ -41,7 +84,38 @@ def load_trading_history() -> List[Dict]:
 
 def save_trading_history(history: List[Dict]) -> bool:
     """
-    売買履歴を保存
+    売買履歴を保存（Google Sheets or ローカルJSON）
+
+    Args:
+        history: 売買履歴のリスト
+
+    Returns:
+        成功時True
+    """
+    # Google Sheetsを使用する場合
+    if use_gsheets():
+        try:
+            from .simple_gsheets_client import get_simple_gsheets_client
+            client = get_simple_gsheets_client()
+            if client:
+                client.save_trading_history(history)
+                # ローカルにもバックアップ保存
+                save_trading_history_local(history)
+                return True
+            else:
+                # Google Sheetsが使えない場合はローカルに保存
+                return save_trading_history_local(history)
+        except Exception as e:
+            print(f"Google Sheetsへの保存エラー: {e}")
+            return save_trading_history_local(history)
+    else:
+        # ローカルJSONに保存
+        return save_trading_history_local(history)
+
+
+def save_trading_history_local(history: List[Dict]) -> bool:
+    """
+    ローカルJSONファイルに売買履歴を保存
 
     Args:
         history: 売買履歴のリスト

@@ -7,6 +7,14 @@ from pathlib import Path
 from datetime import datetime
 import uuid
 
+# 開発時のモジュール強制リロード（修正を即座に反映）
+import sys
+import importlib
+if 'src.profit_calculator' in sys.modules:
+    importlib.reload(sys.modules['src.profit_calculator'])
+if 'src.trading_history' in sys.modules:
+    importlib.reload(sys.modules['src.trading_history'])
+
 from src.auth import JQuantsAuth
 from src.api import JQuantsClient
 from src.alpha import calculate_alpha
@@ -741,8 +749,8 @@ def render_profit_summary():
 
     st.divider()
 
-    # 余力
-    st.subheader("💵 余力（投資可能額）")
+    # 投資成績サマリー
+    st.subheader("📊 投資成績サマリー")
 
     # 初期資金の設定（settings.jsonに永続化）
     if "initial_capital" not in st.session_state:
@@ -773,15 +781,40 @@ def render_profit_summary():
 
     available = calculate_available_capital(hypotheses, st.session_state.initial_capital)
 
-    col1, col2, col3, col4 = st.columns(4)
+    # 総資産と損益を計算
+    total_assets = available['current_investment'] + available['available_capital']
+    profit_loss = total_assets - available['initial_capital']
+    profit_loss_rate = (profit_loss / available['initial_capital'] * 100) if available['initial_capital'] > 0 else 0
+
+    # メイン表示：総資産と損益
+    col_main1, col_main2 = st.columns(2)
+    with col_main1:
+        st.metric(
+            "総資産",
+            f"¥{total_assets:,.0f}",
+            delta=f"¥{profit_loss:,.0f}",
+            delta_color="normal" if profit_loss >= 0 else "inverse"
+        )
+    with col_main2:
+        st.metric(
+            "損益率",
+            f"{profit_loss_rate:+.2f}%",
+            delta=f"¥{profit_loss:,.0f}",
+            delta_color="normal" if profit_loss >= 0 else "inverse"
+        )
+
+    st.divider()
+
+    # 内訳表示
+    st.write("**内訳：**")
+
+    col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("初期資金", f"¥{available['initial_capital']:,.0f}")
+        st.metric("保有証券", f"¥{available['current_investment']:,.0f}", help=f"{len(hypotheses)}銘柄保有中")
     with col2:
-        st.metric("現在保有額", f"¥{available['current_investment']:,.0f}")
+        st.metric("現金", f"¥{available['available_capital']:,.0f}", help="投資可能額")
     with col3:
-        st.metric("累計売却額", f"¥{available['cumulative_sales']:,.0f}")
-    with col4:
-        st.metric("余力", f"¥{available['available_capital']:,.0f}")
+        st.metric("初期資金", f"¥{available['initial_capital']:,.0f}")
 
     st.divider()
 

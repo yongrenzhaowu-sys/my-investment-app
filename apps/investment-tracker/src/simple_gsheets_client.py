@@ -14,16 +14,23 @@ class SimpleGSheetsClient:
     書き込み: Google Apps Script（ウェブアプリ）にPOSTリクエスト
     """
 
-    def __init__(self, read_url: str, write_url: Optional[str] = None):
+    def __init__(
+        self,
+        read_url: str,
+        write_url: Optional[str] = None,
+        trading_history_read_url: Optional[str] = None
+    ):
         """
         初期化
 
         Args:
-            read_url: スプレッドシートのCSV公開URL
+            read_url: 保有銘柄シートのCSV公開URL
             write_url: Google Apps ScriptのウェブアプリURL（書き込み用）
+            trading_history_read_url: 売買履歴シートのCSV公開URL
         """
         self.read_url = read_url
         self.write_url = write_url
+        self.trading_history_read_url = trading_history_read_url
 
     def load_hypotheses(self) -> List[Dict]:
         """
@@ -133,6 +140,110 @@ class SimpleGSheetsClient:
         except Exception as e:
             st.error(f"データ保存エラー: {e}")
 
+    def load_trading_history(self) -> List[Dict]:
+        """
+        売買履歴をGoogle Sheetsから読み込み
+
+        Returns:
+            売買履歴のリスト
+        """
+        if not self.trading_history_read_url:
+            st.warning("売買履歴のURL（TRADING_HISTORY_READ_URL）が設定されていません")
+            return []
+
+        try:
+            # キャッシュ回避のため、URLにタイムスタンプを追加
+            import time
+            url_with_cache_buster = self.trading_history_read_url + ("&" if "?" in self.trading_history_read_url else "?") + f"_={int(time.time() * 1000)}"
+
+            # pandasでCSVとして読み込み
+            df = pd.read_csv(url_with_cache_buster)
+
+            # 空のシートの場合
+            if df.empty:
+                return []
+
+            # DataFrameを辞書のリストに変換
+            history = []
+            for idx, row in df.iterrows():
+                try:
+                    # NaN値をスキップ
+                    if pd.isna(row.get("id")):
+                        continue
+
+                    # is_nisaフィールドの処理
+                    is_nisa_value = row.get("is_nisa", False)
+                    if pd.isna(is_nisa_value):
+                        is_nisa_value = False
+                    elif isinstance(is_nisa_value, str):
+                        is_nisa_value = is_nisa_value.lower() in ['true', '1', 'yes']
+
+                    record = {
+                        "id": str(row["id"]),
+                        "code": str(row["code"]),
+                        "name": str(row.get("name", "")),
+                        "purchase_date": str(row["purchase_date"]),
+                        "purchase_price": float(row["purchase_price"]),
+                        "shares": int(row.get("shares", 100)),
+                        "purchase_reason": str(row.get("purchase_reason", "")),
+                        "sell_date": str(row["sell_date"]),
+                        "sell_price": float(row["sell_price"]),
+                        "sell_reason": str(row.get("sell_reason", "")),
+                        "realized_profit": float(row["realized_profit"]),
+                        "realized_profit_rate": float(row["realized_profit_rate"]),
+                        "holding_days": int(row["holding_days"]),
+                        "tax_amount": float(row["tax_amount"]),
+                        "after_tax_profit": float(row["after_tax_profit"]),
+                        "original_hypothesis_id": str(row.get("original_hypothesis_id", "")),
+                        "created_at": str(row.get("created_at", "")),
+                        "sold_at": str(row.get("sold_at", "")),
+                        "kpi_threshold": float(row["kpi_threshold"]) if not pd.isna(row.get("kpi_threshold")) else None,
+                        "is_nisa": is_nisa_value
+                    }
+                    history.append(record)
+
+                except Exception as e:
+                    # 個別行のエラーをログに記録してスキップ
+                    st.warning(f"売買履歴の行{idx}のデータ読み込みエラー（スキップ）: {e}")
+                    continue
+
+            return history
+
+        except Exception as e:
+            st.warning(f"売買履歴の読み込みエラー: {e}")
+            return []
+
+    def save_trading_history(self, history: List[Dict]) -> None:
+        """
+        売買履歴をGoogle Sheetsに保存
+
+        Args:
+            history: 売買履歴のリスト
+        """
+        if not self.write_url:
+            st.error("書き込み用URLが設定されていません")
+            return
+
+        try:
+            # 売買履歴をJSON形式でPOST
+            payload = {
+                "action": "save_trading_history",
+                "data": history
+            }
+
+            response = requests.post(
+                self.write_url,
+                json=payload,
+                timeout=10
+            )
+
+            if response.status_code != 200:
+                st.error(f"売買履歴の保存エラー: {response.status_code}")
+            # 成功時はメッセージを表示しない（頻繁に保存されるため）
+
+        except Exception as e:
+            st.error(f"売買履歴の保存エラー: {e}")
+
 
 def get_simple_gsheets_client() -> Optional[SimpleGSheetsClient]:
     """
@@ -145,6 +256,7 @@ def get_simple_gsheets_client() -> Optional[SimpleGSheetsClient]:
         try:
             read_url = st.secrets.get("SPREADSHEET_READ_URL")
             write_url = st.secrets.get("SPREADSHEET_WRITE_URL")
+            trading_history_read_url = st.secrets.get("TRADING_HISTORY_READ_URL")
 
             if not read_url:
                 st.error("SPREADSHEET_READ_URL が設定されていません")
@@ -152,7 +264,8 @@ def get_simple_gsheets_client() -> Optional[SimpleGSheetsClient]:
 
             st.session_state.simple_gsheets_client = SimpleGSheetsClient(
                 read_url=read_url,
-                write_url=write_url
+                write_url=write_url,
+                trading_history_read_url=trading_history_read_url
             )
 
         except Exception as e:
