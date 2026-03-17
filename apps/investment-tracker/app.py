@@ -262,6 +262,9 @@ def render_hypothesis_list():
     """仮説一覧を表示"""
     hypotheses = load_hypotheses()
 
+    # 銘柄コード順にソート
+    hypotheses = sorted(hypotheses, key=lambda x: x['code'])
+
     if not hypotheses:
         st.info("まだ仮説が登録されていません。サイドバーから登録してください。")
         return
