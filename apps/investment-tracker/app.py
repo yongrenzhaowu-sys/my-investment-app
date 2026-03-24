@@ -697,6 +697,9 @@ def render_profit_summary():
     """損益サマリー画面を表示"""
     st.header("📊 損益サマリー")
 
+    # デバッグ情報を表示
+    st.info(f"🔍 デバッグ: 現在の初期資金 = ¥{st.session_state.get('initial_capital', 'NOT SET'):,}")
+
     hypotheses = load_hypotheses()
     current_year = datetime.now().year
 
@@ -754,12 +757,6 @@ def render_profit_summary():
 
     # 投資成績サマリー
     st.subheader("📊 投資成績サマリー")
-
-    # 初期資金の設定（settings.jsonに永続化）
-    if "initial_capital" not in st.session_state:
-        # settings.jsonから読み込み
-        settings = load_settings()
-        st.session_state.initial_capital = settings.get("initial_capital", 1_000_000)
 
     with st.expander("⚙️ 初期資金設定"):
         new_capital = st.number_input(
@@ -990,10 +987,23 @@ def main():
         st.error(st.session_state.auth_error)
         st.stop()
 
-    # 3. サイドバー
+    # 3. 初期資金の設定（settings.jsonから読み込み、セッション全体で保持）
+    if "initial_capital" not in st.session_state:
+        from src.settings import get_settings_file_path
+        settings = load_settings()
+        loaded_value = settings.get("initial_capital", 1_000_000)
+        st.session_state.initial_capital = loaded_value
+        # デバッグ: 読み込まれた値をコンソールに出力
+        settings_path = get_settings_file_path()
+        print(f"DEBUG: 設定ファイルパス = {settings_path}")
+        print(f"DEBUG: ファイル存在確認 = {os.path.exists(settings_path)}")
+        print(f"DEBUG: settings全体 = {settings}")
+        print(f"DEBUG: initial_capital = {loaded_value}")
+
+    # 4. サイドバー
     render_sidebar()
 
-    # 4. メインコンテンツ
+    # 5. メインコンテンツ
     # 編集フォーム表示中
     if "edit_hypothesis_id" in st.session_state:
         render_edit_form(st.session_state.edit_hypothesis_id)
