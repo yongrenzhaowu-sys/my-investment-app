@@ -987,18 +987,17 @@ def main():
         st.error(st.session_state.auth_error)
         st.stop()
 
-    # 3. 初期資金の設定（settings.jsonから読み込み、セッション全体で保持）
-    if "initial_capital" not in st.session_state:
-        from src.settings import get_settings_file_path
-        settings = load_settings()
-        loaded_value = settings.get("initial_capital", 1_000_000)
-        st.session_state.initial_capital = loaded_value
-        # デバッグ: 読み込まれた値をコンソールに出力
-        settings_path = get_settings_file_path()
-        print(f"DEBUG: 設定ファイルパス = {settings_path}")
-        print(f"DEBUG: ファイル存在確認 = {os.path.exists(settings_path)}")
-        print(f"DEBUG: settings全体 = {settings}")
-        print(f"DEBUG: initial_capital = {loaded_value}")
+    # 3. 初期資金の設定（settings.jsonから毎回読み込み、常に最新の値を使用）
+    from src.settings import get_settings_file_path
+    settings = load_settings()
+    loaded_value = settings.get("initial_capital", 1_000_000)
+    st.session_state.initial_capital = loaded_value
+    # デバッグ: 読み込まれた値をコンソールに出力
+    settings_path = get_settings_file_path()
+    print(f"DEBUG: 設定ファイルパス = {settings_path}")
+    print(f"DEBUG: ファイル存在確認 = {os.path.exists(settings_path)}")
+    print(f"DEBUG: settings全体 = {settings}")
+    print(f"DEBUG: initial_capital = {loaded_value}")
 
     # 4. サイドバー
     render_sidebar()
