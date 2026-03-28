@@ -697,9 +697,6 @@ def render_profit_summary():
     """損益サマリー画面を表示"""
     st.header("📊 損益サマリー")
 
-    # デバッグ情報を表示
-    st.info(f"🔍 デバッグ: 現在の初期資金 = ¥{st.session_state.get('initial_capital', 'NOT SET'):,}")
-
     hypotheses = load_hypotheses()
     current_year = datetime.now().year
 
@@ -759,14 +756,27 @@ def render_profit_summary():
     st.subheader("📊 投資成績サマリー")
 
     with st.expander("⚙️ 初期資金設定"):
+        # 現在の初期資金を表示
+        st.info(f"**現在の初期資金**: ¥{st.session_state.initial_capital:,}")
+
         new_capital = st.number_input(
-            "初期資金（円）",
+            "新しい初期資金（円）",
             min_value=0,
             value=st.session_state.initial_capital,
             step=100_000,
-            help="ログイン後も保持されます"
+            key="new_initial_capital_input",
+            help="変更後は「更新」ボタンを押してください"
         )
-        if st.button("更新", key="update_initial_capital"):
+
+        # 値が変更されたかチェック
+        is_changed = new_capital != st.session_state.initial_capital
+
+        if st.button(
+            "更新" if is_changed else "更新（変更なし）",
+            key="update_initial_capital",
+            type="primary" if is_changed else "secondary",
+            disabled=not is_changed
+        ):
             # セッション状態を更新
             st.session_state.initial_capital = new_capital
 
@@ -774,7 +784,9 @@ def render_profit_summary():
             settings = load_settings()
             settings["initial_capital"] = new_capital
             if save_settings(settings):
-                st.success("✅ 初期資金を更新しました（永続化済み）")
+                st.success(f"✅ 初期資金を ¥{new_capital:,} に更新しました（永続化済み）")
+                # セッション状態を明示的に更新
+                st.session_state.initial_capital = new_capital
             else:
                 st.warning("⚠️ 初期資金を更新しました（永続化に失敗）")
             st.rerun()
@@ -987,17 +999,16 @@ def main():
         st.error(st.session_state.auth_error)
         st.stop()
 
-    # 3. 初期資金の設定（settings.jsonから毎回読み込み、常に最新の値を使用）
-    from src.settings import get_settings_file_path
-    settings = load_settings()
-    loaded_value = settings.get("initial_capital", 1_000_000)
-    st.session_state.initial_capital = loaded_value
-    # デバッグ: 読み込まれた値をコンソールに出力
-    settings_path = get_settings_file_path()
-    print(f"DEBUG: 設定ファイルパス = {settings_path}")
-    print(f"DEBUG: ファイル存在確認 = {os.path.exists(settings_path)}")
-    print(f"DEBUG: settings全体 = {settings}")
-    print(f"DEBUG: initial_capital = {loaded_value}")
+    # 3. 初期資金の設定（未設定の場合のみsettings.jsonから読み込み）
+    if "initial_capital" not in st.session_state:
+        from src.settings import get_settings_file_path
+        settings = load_settings()
+        loaded_value = settings.get("initial_capital", 1_000_000)
+        st.session_state.initial_capital = loaded_value
+        # デバッグ: 読み込まれた値をコンソールに出力
+        settings_path = get_settings_file_path()
+        print(f"DEBUG: 初回読み込み - 設定ファイルパス = {settings_path}")
+        print(f"DEBUG: initial_capital = {loaded_value}")
 
     # 4. サイドバー
     render_sidebar()
