@@ -157,6 +157,9 @@ def check_login():
         if submitted:
             if password == correct_password:
                 st.session_state.logged_in = True
+                # ログイン時に初期資金を強制的にクリア（次のmain()で再読み込みされる）
+                if "initial_capital" in st.session_state:
+                    del st.session_state.initial_capital
                 st.success("ログイン成功！")
                 st.rerun()
             else:
@@ -254,7 +257,9 @@ def render_sidebar():
     # ログアウトボタン
     st.sidebar.divider()
     if st.sidebar.button("🚪 ログアウト", width="stretch"):
-        st.session_state.logged_in = False
+        # セッション状態を完全にクリア（次回ログイン時に設定を再読み込み）
+        for key in list(st.session_state.keys()):
+            del st.session_state[key]
         st.rerun()
 
 
