@@ -69,11 +69,21 @@ def save_settings(settings: Dict[str, Any]) -> bool:
 
 def get_initial_capital() -> float:
     """
-    初期資金を取得
+    初期資金を取得（Streamlit Secrets優先、フォールバックでファイル読み込み）
 
     Returns:
         初期資金（円）
     """
+    # Streamlit Secretsを試す（Streamlit Cloud用）
+    try:
+        import streamlit as st
+        initial_capital = st.secrets.get("initial_capital", None)
+        if initial_capital is not None:
+            return float(initial_capital)
+    except Exception:
+        pass
+
+    # Secretsがない場合は、settings.jsonから読み込み（ローカル開発用）
     settings = load_settings()
     return settings.get("initial_capital", DEFAULT_SETTINGS["initial_capital"])
 

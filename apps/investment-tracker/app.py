@@ -764,6 +764,10 @@ def render_profit_summary():
         # 現在の初期資金を表示
         st.info(f"**現在の初期資金**: ¥{st.session_state.initial_capital:,}")
 
+        # Streamlit Cloudの場合の注意事項
+        if use_gsheets():
+            st.caption("💡 **Streamlit Cloudで初期資金を変更する場合**：Settings → Secrets から `initial_capital` を更新してください")
+
         new_capital = st.number_input(
             "新しい初期資金（円）",
             min_value=0,
@@ -1004,16 +1008,12 @@ def main():
         st.error(st.session_state.auth_error)
         st.stop()
 
-    # 3. 初期資金の設定（未設定の場合のみsettings.jsonから読み込み）
+    # 3. 初期資金の設定（未設定の場合のみ読み込み）
     if "initial_capital" not in st.session_state:
-        from src.settings import get_settings_file_path
-        settings = load_settings()
-        loaded_value = settings.get("initial_capital", 1_000_000)
+        from src.settings import get_initial_capital
+        loaded_value = get_initial_capital()
         st.session_state.initial_capital = loaded_value
-        # デバッグ: 読み込まれた値をコンソールに出力
-        settings_path = get_settings_file_path()
-        print(f"DEBUG: 初回読み込み - 設定ファイルパス = {settings_path}")
-        print(f"DEBUG: initial_capital = {loaded_value}")
+        print(f"DEBUG: 初回読み込み - initial_capital = {loaded_value}")
 
     # 4. サイドバー
     render_sidebar()
