@@ -771,7 +771,7 @@ def render_profit_summary():
         new_capital = st.number_input(
             "新しい初期資金（円）",
             min_value=0,
-            value=st.session_state.initial_capital,
+            value=int(st.session_state.initial_capital),
             step=100_000,
             key="new_initial_capital_input",
             help="変更後は「更新」ボタンを押してください"
