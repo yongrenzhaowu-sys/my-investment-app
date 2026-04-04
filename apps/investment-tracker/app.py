@@ -800,12 +800,90 @@ def render_profit_summary():
                 st.warning("⚠️ 初期資金を更新しました（永続化に失敗）")
             st.rerun()
 
-    available = calculate_available_capital(hypotheses, st.session_state.initial_capital)
+    # 追加投資額設定（投資可能額の計算前に行う必要があるため、ここで実行）
+    with st.expander("💰 追加投資額設定"):
+        st.info(f"**現在の追加投資額**: ¥{st.session_state.additional_capital:,}")
+        st.caption("楽天銀行からスイープされた追加資金をここで管理します")
+
+        # Streamlit Cloudの場合の注意事項
+        if use_gsheets():
+            st.caption("💡 **Streamlit Cloudで追加投資額を変更する場合**：Settings → Secrets から `additional_capital` を更新してください")
+
+        # 仮の投資可能額を計算（現在の追加投資額で）
+        temp_available = calculate_available_capital(
+            hypotheses,
+            st.session_state.initial_capital,
+            st.session_state.additional_capital
+        )
+
+        # 投資可能額がマイナスの場合、警告と自動計算ボタンを表示
+        if temp_available['available_capital'] < 0:
+            st.warning(f"⚠️ **投資可能額がマイナスです**: ¥{temp_available['available_capital']:,.0f}")
+            st.info("💡 楽天銀行からスイープで資金が追加されている可能性があります")
+
+            if st.button("🔄 追加投資額を自動計算", key="auto_calc_additional", type="primary"):
+                # マイナス分を追加投資額に加算
+                deficit = abs(temp_available['available_capital'])
+                new_additional = st.session_state.additional_capital + deficit
+
+                # セッション状態を更新
+                st.session_state.additional_capital = new_additional
+
+                # settings.jsonに保存
+                settings = load_settings()
+                settings["additional_capital"] = new_additional
+                if save_settings(settings):
+                    st.success(f"✅ 追加投資額を ¥{new_additional:,} に更新しました（マイナス分 ¥{deficit:,.0f} を追加）")
+                else:
+                    st.warning("⚠️ 追加投資額を更新しました（永続化に失敗）")
+                st.rerun()
+
+        st.divider()
+
+        # 手動入力
+        st.subheader("手動で設定")
+        new_additional = st.number_input(
+            "追加投資額（円）",
+            min_value=0,
+            value=int(st.session_state.additional_capital),
+            step=100_000,
+            key="new_additional_capital_input",
+            help="楽天銀行からスイープされた追加資金を入力してください"
+        )
+
+        # 値が変更されたかチェック
+        is_additional_changed = new_additional != st.session_state.additional_capital
+
+        if st.button(
+            "更新" if is_additional_changed else "更新（変更なし）",
+            key="update_additional_capital",
+            type="primary" if is_additional_changed else "secondary",
+            disabled=not is_additional_changed
+        ):
+            # セッション状態を更新
+            st.session_state.additional_capital = new_additional
+
+            # settings.jsonに保存
+            settings = load_settings()
+            settings["additional_capital"] = new_additional
+            if save_settings(settings):
+                st.success(f"✅ 追加投資額を ¥{new_additional:,} に更新しました（永続化済み）")
+                # セッション状態を明示的に更新
+                st.session_state.additional_capital = new_additional
+            else:
+                st.warning("⚠️ 追加投資額を更新しました（永続化に失敗）")
+            st.rerun()
+
+    available = calculate_available_capital(
+        hypotheses,
+        st.session_state.initial_capital,
+        st.session_state.additional_capital
+    )
 
     # 総資産と損益を計算
     total_assets = available['current_investment'] + available['available_capital']
-    profit_loss = total_assets - available['initial_capital']
-    profit_loss_rate = (profit_loss / available['initial_capital'] * 100) if available['initial_capital'] > 0 else 0
+    profit_loss = total_assets - available['total_capital']
+    profit_loss_rate = (profit_loss / available['total_capital'] * 100) if available['total_capital'] > 0 else 0
 
     # メイン表示：総資産と損益
     col_main1, col_main2 = st.columns(2)
@@ -829,13 +907,19 @@ def render_profit_summary():
     # 内訳表示
     st.write("**内訳：**")
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     with col1:
         st.metric("保有証券", f"¥{available['current_investment']:,.0f}", help=f"{len(hypotheses)}銘柄保有中")
     with col2:
         st.metric("現金", f"¥{available['available_capital']:,.0f}", help="投資可能額")
+
+    col3, col4, col5 = st.columns(3)
     with col3:
-        st.metric("初期資金", f"¥{available['initial_capital']:,.0f}")
+        st.metric("初期資金", f"¥{available['initial_capital']:,.0f}", help="最初に投入した資金")
+    with col4:
+        st.metric("追加投資額", f"¥{available['additional_capital']:,.0f}", help="楽天銀行からスイープされた追加資金")
+    with col5:
+        st.metric("合計投資額", f"¥{available['total_capital']:,.0f}", help="初期資金 + 追加投資額")
 
     st.divider()
 
@@ -863,9 +947,9 @@ def render_profit_summary():
         win_rate = 0.0
         avg_holding_days = 0.0
 
-    # 累計リターン
+    # 累計リターン（合計投資額に対するリターン）
     total_return = calculate_total_return(
-        available['initial_capital'],
+        available['total_capital'],  # 初期資金 + 追加投資額
         available['current_investment'],
         unrealized['total_unrealized'],
         available['cumulative_sales']
@@ -1014,6 +1098,13 @@ def main():
         loaded_value = get_initial_capital()
         st.session_state.initial_capital = loaded_value
         print(f"DEBUG: 初回読み込み - initial_capital = {loaded_value}")
+
+    # 4. 追加投資額の設定（未設定の場合のみ読み込み）
+    if "additional_capital" not in st.session_state:
+        from src.settings import get_additional_capital
+        loaded_value = get_additional_capital()
+        st.session_state.additional_capital = loaded_value
+        print(f"DEBUG: 初回読み込み - additional_capital = {loaded_value}")
 
     # 4. サイドバー
     render_sidebar()

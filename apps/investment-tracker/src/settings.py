@@ -6,6 +6,7 @@ from typing import Dict, Any
 
 DEFAULT_SETTINGS = {
     "initial_capital": 1_000_000,  # デフォルト: 100万円
+    "additional_capital": 0,  # デフォルト: 0円（追加投資なし）
 }
 
 
@@ -100,4 +101,40 @@ def set_initial_capital(capital: float) -> bool:
     """
     settings = load_settings()
     settings["initial_capital"] = capital
+    return save_settings(settings)
+
+
+def get_additional_capital() -> int:
+    """
+    追加投資額を取得（Streamlit Secrets優先、フォールバックでファイル読み込み）
+
+    Returns:
+        追加投資額（円）
+    """
+    # Streamlit Secretsを試す（Streamlit Cloud用）
+    try:
+        import streamlit as st
+        additional_capital = st.secrets.get("additional_capital", None)
+        if additional_capital is not None:
+            return int(additional_capital)
+    except Exception:
+        pass
+
+    # Secretsがない場合は、settings.jsonから読み込み（ローカル開発用）
+    settings = load_settings()
+    return int(settings.get("additional_capital", DEFAULT_SETTINGS["additional_capital"]))
+
+
+def set_additional_capital(capital: float) -> bool:
+    """
+    追加投資額を設定
+
+    Args:
+        capital: 追加投資額（円）
+
+    Returns:
+        保存成功したかどうか
+    """
+    settings = load_settings()
+    settings["additional_capital"] = capital
     return save_settings(settings)
