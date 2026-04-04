@@ -29,7 +29,7 @@ from src.profit_calculator import (
     calculate_available_capital,
     calculate_yearly_profit
 )
-from src.settings import load_settings, save_settings
+from src.settings import load_settings, save_settings, get_initial_capital, get_additional_capital
 from src.metrics import (
     calculate_sharpe_ratio,
     calculate_max_drawdown,
@@ -1094,14 +1094,12 @@ def main():
 
     # 3. 初期資金の設定（未設定の場合のみ読み込み）
     if "initial_capital" not in st.session_state:
-        from src.settings import get_initial_capital
         loaded_value = get_initial_capital()
         st.session_state.initial_capital = loaded_value
         print(f"DEBUG: 初回読み込み - initial_capital = {loaded_value}")
 
     # 4. 追加投資額の設定（未設定の場合のみ読み込み）
     if "additional_capital" not in st.session_state:
-        from src.settings import get_additional_capital
         loaded_value = get_additional_capital()
         st.session_state.additional_capital = loaded_value
         print(f"DEBUG: 初回読み込み - additional_capital = {loaded_value}")
