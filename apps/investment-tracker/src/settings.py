@@ -138,3 +138,4 @@ def set_additional_capital(capital: float) -> bool:
     settings = load_settings()
     settings["additional_capital"] = capital
     return save_settings(settings)
+
