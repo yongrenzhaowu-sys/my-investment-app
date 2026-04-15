@@ -441,6 +441,10 @@ def calculate_ev_ebitda(client, code: str, reference_date: Optional[datetime] = 
     # EV/EBITDA計算
     ev_ebitda_ratio = ev / ebitda
 
+    # 営業利益×10との乖離計算（簡易バリュエーション指標）
+    op_x10 = op * 10  # 百万円単位
+    op_divergence = ((market_cap - op_x10) / op_x10) * 100  # %
+
     # デバッグ出力
     if code == "41770":
         print(f"[DEBUG EV/EBITDA 41770]")
@@ -482,7 +486,10 @@ def calculate_ev_ebitda(client, code: str, reference_date: Optional[datetime] = 
         'theoretical_price': theoretical_price,
         'current_price': current_price,
         'signal': signal,
-        'error': None
+        'error': None,
+        'market_cap': market_cap,  # 時価総額（百万円）
+        'op_x10': op_x10,  # 営業利益×10（百万円）
+        'op_divergence': op_divergence  # 営業利益×10との乖離率（%）
     }
 
 
@@ -634,6 +641,14 @@ def analyze_stock(client, code: str, reference_date: Optional[datetime] = None) 
     # 銘柄コードを5桁文字列に変換
     code_str = str(code).zfill(5)
 
+    # 銘柄情報を取得
+    try:
+        company_info = client.get_company_info(code_str)
+        company_name = company_info.get('CompanyName', f'銘柄{code_str}')
+    except Exception as e:
+        print(f"銘柄情報取得エラー（{code_str}）: {e}")
+        company_name = f'銘柄{code_str}'
+
     # 各分析実行
     peg = calculate_peg_ratio(client, code_str, reference_date)
     ma_div = calculate_ma_divergence(client, code_str)
@@ -705,6 +720,7 @@ def analyze_stock(client, code: str, reference_date: Optional[datetime] = None) 
 
     return {
         'code': code_str,
+        'company_name': company_name,
         'current_price': current_price,
         'theoretical_prices': {
             'peg': peg.get('theoretical_price'),

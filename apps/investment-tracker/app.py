@@ -1249,7 +1249,11 @@ def _render_analysis_result(result):
     # ヘッダー
     col1, col2, col3 = st.columns([2, 2, 1])
     with col1:
-        st.subheader(f"銘柄コード: {result['code']}")
+        company_name = result.get('company_name', '')
+        if company_name:
+            st.subheader(f"{company_name} ({result['code']})")
+        else:
+            st.subheader(f"銘柄コード: {result['code']}")
 
     with col2:
         # 現在株価と最小理論株価
@@ -1333,6 +1337,11 @@ def _render_analysis_result(result):
             # EVとEBITDAは百万円単位なので、億円に変換するには /100
             st.caption(f"EV: {ev.get('ev', 0)/100:.0f}億円")
             st.caption(f"EBITDA: {ev.get('ebitda', 0)/100:.0f}億円")
+            # 営業利益×10との乖離
+            if ev.get('op_divergence') is not None:
+                op_div = ev.get('op_divergence', 0)
+                st.caption(f"📊 OP×10乖離: {op_div:+.1f}%")
+                st.caption(f"   時総: {ev.get('market_cap', 0)/100:.0f}億 vs OP×10: {ev.get('op_x10', 0)/100:.0f}億")
             if ev.get('theoretical_price') is not None:
                 st.caption(f"理論株価: ¥{ev.get('theoretical_price', 0):.0f}")
             st.markdown(_render_signal_badge(ev.get('signal')))
