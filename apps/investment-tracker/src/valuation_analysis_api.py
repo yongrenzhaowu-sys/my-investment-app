@@ -382,17 +382,19 @@ def calculate_ev_ebitda(client, code: str, reference_date: Optional[datetime] = 
 
     # 発行済株式数 = 純利益（百万円→円） / EPS（円/株）
     shares_outstanding = (np * 1_000_000) / eps
-    # 時価総額 = 株価 × 発行済株式数
-    market_cap = current_price * shares_outstanding
+    # 時価総額（円単位）
+    market_cap_yen = current_price * shares_outstanding
+    # 時価総額（百万円単位に変換）
+    market_cap = market_cap_yen / 1_000_000
 
-    # 純負債計算
+    # 純負債計算（百万円単位）
     total_debt = ta - eq
     net_debt = total_debt - cash_eq if not pd.isna(cash_eq) else total_debt
 
-    # EV計算
+    # EV計算（百万円単位）
     ev = market_cap + net_debt
 
-    # EBITDA ≈ 営業利益
+    # EBITDA ≈ 営業利益（百万円単位）
     ebitda = op
 
     # EV/EBITDA計算
@@ -407,14 +409,15 @@ def calculate_ev_ebitda(client, code: str, reference_date: Optional[datetime] = 
         signal = 'SELL'
 
     # 理論株価計算（EV/EBITDA=10を適正とする）
-    theoretical_ev = ebitda * 10
-    theoretical_market_cap = theoretical_ev - net_debt
+    theoretical_ev = ebitda * 10  # 百万円単位
+    theoretical_market_cap = theoretical_ev - net_debt  # 百万円単位
 
     # 理論時価総額がマイナスの場合はNone
     if theoretical_market_cap <= 0 or shares_outstanding <= 0:
         theoretical_price = None
     else:
-        theoretical_price = theoretical_market_cap / shares_outstanding
+        # 理論株価（円単位） = 理論時価総額（百万円→円） / 発行済株式数
+        theoretical_price = (theoretical_market_cap * 1_000_000) / shares_outstanding
 
     return {
         'ev_ebitda': ev_ebitda_ratio,
@@ -462,7 +465,7 @@ def calculate_dcf_proxy(client, code: str, reference_date: Optional[datetime] = 
 
     latest_fin = financials.iloc[-1]
 
-    # CFデータを数値に変換
+    # CFデータを数値に変換（百万円単位）
     cfo = pd.to_numeric(latest_fin.get('CFO'), errors='coerce')
     cfi = pd.to_numeric(latest_fin.get('CFI'), errors='coerce')
 
@@ -521,11 +524,11 @@ def calculate_dcf_proxy(client, code: str, reference_date: Optional[datetime] = 
     # 発行済株式数 = 純利益（百万円→円） / EPS（円/株）
     shares_outstanding = (np * 1_000_000) / eps
 
-    # 理論企業価値
+    # 理論企業価値（百万円単位）
     theoretical_ev = fcf / wacc
 
-    # 理論株価
-    theoretical_price = theoretical_ev / shares_outstanding
+    # 理論株価（円単位） = 理論企業価値（百万円→円） / 発行済株式数
+    theoretical_price = (theoretical_ev * 1_000_000) / shares_outstanding
 
     # 現在株価 / 理論株価
     price_to_theoretical = current_price / theoretical_price
