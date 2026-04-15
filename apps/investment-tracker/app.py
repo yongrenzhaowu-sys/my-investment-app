@@ -1297,8 +1297,9 @@ def _render_analysis_result(result):
                 st.caption(f"理論株価: ¥{peg.get('theoretical_price', 0):.0f}")
             # デバッグ情報
             with st.expander("🔍 詳細"):
+                eps_type = peg.get('eps_type', '実績')
                 st.write(f"**現在株価**: ¥{result.get('current_price', 0):.2f}")
-                st.write(f"**EPS（最新）**: {peg.get('eps', 'N/A'):.2f} 円")
+                st.write(f"**EPS（{eps_type}）**: {peg.get('eps', 'N/A'):.2f} 円")
                 st.write(f"**NP（最新）**: {peg.get('np_latest', 0):,.0f} 百万円")
                 st.write(f"**決算期**: {peg.get('fiscal_period', 'N/A')}")
                 st.write(f"**開示日**: {peg.get('disc_date', 'N/A')}")

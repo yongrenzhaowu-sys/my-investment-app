@@ -206,3 +206,41 @@ class JQuantsClient:
             # エラー時
             print(f"WARNING: 銘柄情報取得エラー（コード: {code}）: {e}")
             return {"Code": code, "CompanyName": f"銘柄{code}"}
+
+    def get_earnings_forecast(self, code: str) -> pd.DataFrame:
+        """
+        業績予想データを取得（J-Quants API V2）
+
+        Args:
+            code: 銘柄コード（5桁文字列）
+
+        Returns:
+            業績予想データフレーム（会社発表の予想値）
+        """
+        url = f"{self.BASE_URL}/fins/announcement"
+        params = {"code": code}
+
+        try:
+            response = self.session.get(url, params=params, timeout=30)
+            response.raise_for_status()
+
+            data = response.json()
+
+            if "data" in data and data["data"]:
+                df = pd.DataFrame(data["data"])
+
+                # 日付列を変換
+                if "Date" in df.columns:
+                    df["Date"] = pd.to_datetime(df["Date"], errors='coerce')
+
+                # 最新の予想データを優先（日付降順）
+                if "Date" in df.columns:
+                    df = df.sort_values("Date", ascending=False)
+
+                return df
+            else:
+                return pd.DataFrame()
+
+        except requests.exceptions.RequestException as e:
+            print(f"業績予想データ取得エラー（{code}）: {e}")
+            return pd.DataFrame()

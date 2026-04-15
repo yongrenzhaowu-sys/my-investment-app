@@ -182,11 +182,25 @@ def get_financials_from_api(client, code: str, debug: bool = False) -> pd.DataFr
 def calculate_peg_ratio(client, code: str, reference_date: Optional[datetime] = None) -> Dict:
     """
     PEG Ratio計算（API版）
+
+    予想EPSを優先的に使用し、なければ実績EPSを使用
     """
     if reference_date is None:
         reference_date = datetime.now()
 
-    # 財務データ取得
+    # 1. 業績予想データを取得（予想EPS）
+    forecast = client.get_earnings_forecast(code)
+    forecast_eps = None
+    forecast_date = None
+
+    if len(forecast) > 0 and 'ForecastEPS' in forecast.columns:
+        # 最新の予想EPSを取得
+        forecast_eps = pd.to_numeric(forecast.iloc[0].get('ForecastEPS'), errors='coerce')
+        forecast_date = forecast.iloc[0].get('Date')
+        if pd.notna(forecast_eps) and forecast_eps > 0:
+            print(f"[{code}] 予想EPS使用: {forecast_eps:.2f}円 (発表日: {forecast_date})")
+
+    # 2. 財務データ取得（実績EPS）
     financials = get_financials_from_api(client, code)
 
     if len(financials) == 0:
@@ -232,18 +246,26 @@ def calculate_peg_ratio(client, code: str, reference_date: Optional[datetime] = 
     current_price = latest_price['Price']
 
     # PER計算（CRITICAL: 株価 / EPS が正しい計算方法）
-    latest_eps = eps_values[-1]
-    per = current_price / latest_eps
+    # 予想EPSを優先、なければ実績EPS
+    if forecast_eps is not None:
+        latest_eps = forecast_eps
+        eps_type = "予想"
+        fiscal_period = forecast_date
+        disc_date = forecast_date
+    else:
+        latest_eps = eps_values[-1]
+        eps_type = "実績"
+        # 最新の決算期情報を取得
+        latest_fin = financials.iloc[-1]
+        fiscal_period = latest_fin.get('CurPerEn', 'N/A')
+        disc_date = latest_fin.get('DiscDate', 'N/A')
 
-    # 最新の決算期情報を取得
-    latest_fin = financials.iloc[-1]
-    fiscal_period = latest_fin.get('CurPerEn', 'N/A')
-    disc_date = latest_fin.get('DiscDate', 'N/A')
+    per = current_price / latest_eps
 
     # デバッグ出力（全銘柄）
     print(f"[DEBUG PER {code}]")
     print(f"  株価: {current_price:.2f} 円")
-    print(f"  EPS: {latest_eps:.2f} 円")
+    print(f"  EPS ({eps_type}): {latest_eps:.2f} 円")
     print(f"  PER: {per:.2f}")
     print(f"  NP最新: {np_values[-1]:,.0f}")
     print(f"  決算期: {fiscal_period}")
@@ -278,6 +300,7 @@ def calculate_peg_ratio(client, code: str, reference_date: Optional[datetime] = 
         'signal': signal,
         'error': None,
         'eps': latest_eps,
+        'eps_type': eps_type,  # "予想" または "実績"
         'np_latest': np_values[-1],
         'fiscal_period': str(fiscal_period),
         'disc_date': str(disc_date)
