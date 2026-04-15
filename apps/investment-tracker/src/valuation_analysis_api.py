@@ -374,14 +374,14 @@ def calculate_ev_ebitda(client, code: str, reference_date: Optional[datetime] = 
     current_price = latest_price['Price']
 
     # 時価総額計算（CRITICAL: 純利益とEPSから発行済株式数を推定）
-    np = pd.to_numeric(latest_fin.get('NP'), errors='coerce')
-    eps = pd.to_numeric(latest_fin.get('EPS'), errors='coerce')
+    np = pd.to_numeric(latest_fin.get('NP'), errors='coerce')  # 百万円単位
+    eps = pd.to_numeric(latest_fin.get('EPS'), errors='coerce')  # 円単位
 
     if pd.isna(np) or pd.isna(eps) or eps <= 0:
         return {'ev_ebitda': None, 'ev': None, 'ebitda': None, 'theoretical_price': None, 'current_price': None, 'signal': None, 'error': 'EPS/NPデータ欠損'}
 
-    # 発行済株式数 = 純利益 / EPS
-    shares_outstanding = np / eps
+    # 発行済株式数 = 純利益（百万円→円） / EPS（円/株）
+    shares_outstanding = (np * 1_000_000) / eps
     # 時価総額 = 株価 × 発行済株式数
     market_cap = current_price * shares_outstanding
 
@@ -505,8 +505,8 @@ def calculate_dcf_proxy(client, code: str, reference_date: Optional[datetime] = 
     current_price = latest_price['Price']
 
     # 発行済株式数（NP/EPSから計算）
-    np = pd.to_numeric(latest_fin.get('NP'), errors='coerce')
-    eps = pd.to_numeric(latest_fin.get('EPS'), errors='coerce')
+    np = pd.to_numeric(latest_fin.get('NP'), errors='coerce')  # 百万円単位
+    eps = pd.to_numeric(latest_fin.get('EPS'), errors='coerce')  # 円単位
 
     if pd.isna(np) or pd.isna(eps) or eps <= 0:
         return {
@@ -518,7 +518,8 @@ def calculate_dcf_proxy(client, code: str, reference_date: Optional[datetime] = 
             'error': 'EPS/NPデータ欠損'
         }
 
-    shares_outstanding = np / eps
+    # 発行済株式数 = 純利益（百万円→円） / EPS（円/株）
+    shares_outstanding = (np * 1_000_000) / eps
 
     # 理論企業価値
     theoretical_ev = fcf / wacc
