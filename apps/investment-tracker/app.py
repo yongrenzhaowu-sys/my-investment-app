@@ -1095,6 +1095,9 @@ def render_valuation_analysis():
     # 仮説データ読み込み
     hypotheses = load_hypotheses()
 
+    # 銘柄コード順にソート
+    hypotheses = sorted(hypotheses, key=lambda h: h.get('code', ''))
+
     if len(hypotheses) == 0:
         st.info("保有銘柄がありません。「📋 仮説登録」から銘柄を登録してください。")
         return
@@ -1181,6 +1184,9 @@ def render_valuation_analysis():
             filtered_results = [r for r in results if r['overall_signal'] == 'HOLD']
         else:
             filtered_results = results
+
+        # 銘柄コード順にソート
+        filtered_results = sorted(filtered_results, key=lambda r: r.get('code', ''))
 
         # 結果表示
         for result in filtered_results:

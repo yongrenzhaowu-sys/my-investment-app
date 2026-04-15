@@ -195,9 +195,15 @@ def calculate_peg_ratio(client, code: str, reference_date: Optional[datetime] = 
     # 基準日より前のデータのみ
     financials = financials[financials['DiscDate'] <= reference_date]
 
-    # 純利益を数値に変換
+    # 純利益とEPSを数値に変換
     financials['NP'] = pd.to_numeric(financials['NP'], errors='coerce')
-    financials = financials[financials['NP'].notna() & (financials['NP'] > 0)]
+    financials['EPS'] = pd.to_numeric(financials['EPS'], errors='coerce')
+
+    # EPSとNPの両方が必要
+    financials = financials[
+        financials['NP'].notna() & (financials['NP'] > 0) &
+        financials['EPS'].notna() & (financials['EPS'] > 0)
+    ]
 
     if len(financials) < 2:
         return {'peg_ratio': None, 'per': None, 'growth_rate': None, 'theoretical_price': None, 'current_price': None, 'signal': None, 'error': '純利益データ不足'}
@@ -205,8 +211,9 @@ def calculate_peg_ratio(client, code: str, reference_date: Optional[datetime] = 
     # 最新5期分
     recent = financials.tail(5)
     np_values = recent['NP'].values
+    eps_values = recent['EPS'].values
 
-    # 成長率計算（CAGR）
+    # 成長率計算（CAGR） - 純利益ベース
     if len(np_values) >= 2:
         years = len(np_values) - 1
         try:
@@ -222,11 +229,11 @@ def calculate_peg_ratio(client, code: str, reference_date: Optional[datetime] = 
         return {'peg_ratio': None, 'per': None, 'growth_rate': None, 'theoretical_price': None, 'current_price': None, 'signal': None, 'error': '株価データなし'}
 
     latest_price = prices.iloc[-1]
-    market_cap = latest_price['Price'] * latest_price['Vo'] * 100
+    current_price = latest_price['Price']
 
-    # PER計算
-    latest_np = np_values[-1]
-    per = market_cap / latest_np
+    # PER計算（CRITICAL: 株価 / EPS が正しい計算方法）
+    latest_eps = eps_values[-1]
+    per = current_price / latest_eps
 
     # PEG計算
     if growth_rate <= 0:
@@ -243,11 +250,10 @@ def calculate_peg_ratio(client, code: str, reference_date: Optional[datetime] = 
         signal = 'SELL'
 
     # 理論株価計算（PEG=1.0を適正とする）
-    shares_outstanding = latest_price['Vo'] * 100
-    eps = latest_np / shares_outstanding
+    # 理論PER = 成長率 × 100
     theoretical_per = growth_rate * 100
-    theoretical_price = eps * theoretical_per
-    current_price = latest_price['Price']
+    # 理論株価 = EPS × 理論PER
+    theoretical_price = latest_eps * theoretical_per
 
     return {
         'peg_ratio': peg_ratio,
@@ -365,7 +371,19 @@ def calculate_ev_ebitda(client, code: str, reference_date: Optional[datetime] = 
         return {'ev_ebitda': None, 'ev': None, 'ebitda': None, 'theoretical_price': None, 'current_price': None, 'signal': None, 'error': '株価データなし'}
 
     latest_price = prices.iloc[-1]
-    market_cap = latest_price['Price'] * latest_price['Vo'] * 100
+    current_price = latest_price['Price']
+
+    # 時価総額計算（CRITICAL: 純利益とEPSから発行済株式数を推定）
+    np = pd.to_numeric(latest_fin.get('NP'), errors='coerce')
+    eps = pd.to_numeric(latest_fin.get('EPS'), errors='coerce')
+
+    if pd.isna(np) or pd.isna(eps) or eps <= 0:
+        return {'ev_ebitda': None, 'ev': None, 'ebitda': None, 'theoretical_price': None, 'current_price': None, 'signal': None, 'error': 'EPS/NPデータ欠損'}
+
+    # 発行済株式数 = 純利益 / EPS
+    shares_outstanding = np / eps
+    # 時価総額 = 株価 × 発行済株式数
+    market_cap = current_price * shares_outstanding
 
     # 純負債計算
     total_debt = ta - eq
@@ -391,15 +409,12 @@ def calculate_ev_ebitda(client, code: str, reference_date: Optional[datetime] = 
     # 理論株価計算（EV/EBITDA=10を適正とする）
     theoretical_ev = ebitda * 10
     theoretical_market_cap = theoretical_ev - net_debt
-    shares_outstanding = latest_price['Vo'] * 100
 
     # 理論時価総額がマイナスの場合はNone
     if theoretical_market_cap <= 0 or shares_outstanding <= 0:
         theoretical_price = None
     else:
         theoretical_price = theoretical_market_cap / shares_outstanding
-
-    current_price = latest_price['Price']
 
     return {
         'ev_ebitda': ev_ebitda_ratio,
@@ -489,8 +504,21 @@ def calculate_dcf_proxy(client, code: str, reference_date: Optional[datetime] = 
     latest_price = prices.iloc[-1]
     current_price = latest_price['Price']
 
-    # 発行済株式数（簡易推定）
-    shares_outstanding = latest_price['Vo'] * 100
+    # 発行済株式数（NP/EPSから計算）
+    np = pd.to_numeric(latest_fin.get('NP'), errors='coerce')
+    eps = pd.to_numeric(latest_fin.get('EPS'), errors='coerce')
+
+    if pd.isna(np) or pd.isna(eps) or eps <= 0:
+        return {
+            'price_to_theoretical': None,
+            'current_price': None,
+            'theoretical_price': None,
+            'fcf': fcf,
+            'signal': None,
+            'error': 'EPS/NPデータ欠損'
+        }
+
+    shares_outstanding = np / eps
 
     # 理論企業価値
     theoretical_ev = fcf / wacc
