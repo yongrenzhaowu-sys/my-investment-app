@@ -1082,10 +1082,15 @@ def render_trading_history():
 
 def render_valuation_analysis():
     """バリュエーション分析を表示"""
-    from src.valuation_analysis import analyze_stock
+    from src.valuation_analysis_api import analyze_stock
 
     st.title("📊 バリュエーション分析")
     st.markdown("保有銘柄に対して4つのバリュエーション分析を実行します。")
+
+    # APIクライアントチェック
+    if not hasattr(st.session_state, 'client') or st.session_state.client is None:
+        st.error("J-Quants APIクライアントが初期化されていません。")
+        return
 
     # 仮説データ読み込み
     hypotheses = load_hypotheses()
@@ -1095,6 +1100,7 @@ def render_valuation_analysis():
         return
 
     st.info(f"保有銘柄数: {len(hypotheses)}銘柄")
+    st.warning("⚠️ J-Quants APIからデータを取得します。銘柄数が多いと時間がかかる場合があります。")
 
     # 分析実行ボタン
     if st.button("🔍 全銘柄を分析", type="primary", use_container_width=True):
@@ -1103,20 +1109,36 @@ def render_valuation_analysis():
 
             # プログレスバー
             progress_bar = st.progress(0)
+            status_text = st.empty()
 
             for idx, hypo in enumerate(hypotheses):
                 code = hypo.get('code')
 
                 if code:
-                    # 分析実行
-                    result = analyze_stock(code)
-                    results.append(result)
+                    status_text.text(f"分析中: {code} ({idx + 1}/{len(hypotheses)})")
+
+                    try:
+                        # 分析実行（APIクライアントを渡す）
+                        result = analyze_stock(st.session_state.client, code)
+                        results.append(result)
+                    except Exception as e:
+                        st.error(f"銘柄 {code} の分析エラー: {e}")
+                        # エラーでも結果に追加（エラー情報付き）
+                        results.append({
+                            'code': code,
+                            'overall_signal': None,
+                            'peg_ratio': {'error': str(e)},
+                            'ma_divergence': {'error': str(e)},
+                            'ev_ebitda': {'error': str(e)},
+                            'dcf_proxy': {'error': str(e)}
+                        })
 
                 # プログレス更新
                 progress = (idx + 1) / len(hypotheses)
                 progress_bar.progress(progress)
 
             progress_bar.empty()
+            status_text.empty()
 
             # 結果を保存（セッション状態）
             st.session_state.valuation_results = results
@@ -1250,11 +1272,12 @@ def _render_analysis_result(result):
         else:
             st.info(f"総合判定: {_render_signal_badge(overall_signal)}")
 
-    # 4つの分析結果を表示
-    cols = st.columns(4)
+    # 4つの分析結果を表示（モバイル対応：2カラム×2行）
 
-    # 1. PEG Ratio
-    with cols[0]:
+    # 1行目：PEG Ratio と 移動平均
+    col1, col2 = st.columns(2)
+
+    with col1:
         st.markdown("**PEG Ratio**")
         peg = result['peg_ratio']
 
@@ -1268,8 +1291,7 @@ def _render_analysis_result(result):
                 st.caption(f"理論株価: ¥{peg.get('theoretical_price', 0):.0f}")
             st.markdown(_render_signal_badge(peg.get('signal')))
 
-    # 2. 移動平均乖離
-    with cols[1]:
+    with col2:
         st.markdown("**移動平均**")
         ma = result['ma_divergence']
 
@@ -1282,8 +1304,10 @@ def _render_analysis_result(result):
             st.caption(f"75日MA: ¥{ma.get('ma_75', 0):.0f}")
             st.markdown(_render_signal_badge(ma.get('signal')))
 
-    # 3. EV/EBITDA
-    with cols[2]:
+    # 2行目：EV/EBITDA と DCF Proxy
+    col3, col4 = st.columns(2)
+
+    with col3:
         st.markdown("**EV/EBITDA**")
         ev = result['ev_ebitda']
 
@@ -1297,8 +1321,7 @@ def _render_analysis_result(result):
                 st.caption(f"理論株価: ¥{ev.get('theoretical_price', 0):.0f}")
             st.markdown(_render_signal_badge(ev.get('signal')))
 
-    # 4. DCF Proxy
-    with cols[3]:
+    with col4:
         st.markdown("**DCF Proxy**")
         dcf = result['dcf_proxy']
 
