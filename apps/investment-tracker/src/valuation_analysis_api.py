@@ -400,6 +400,21 @@ def calculate_ev_ebitda(client, code: str, reference_date: Optional[datetime] = 
     # EV/EBITDA計算
     ev_ebitda_ratio = ev / ebitda
 
+    # デバッグ出力
+    if code == "41770":
+        print(f"[DEBUG EV/EBITDA 41770]")
+        print(f"  current_price: {current_price:.2f} 円")
+        print(f"  shares_outstanding: {shares_outstanding:,.0f} 株")
+        print(f"  market_cap_yen: {current_price * shares_outstanding:,.0f} 円")
+        print(f"  market_cap: {market_cap:.2f} 百万円")
+        print(f"  TA: {ta:.2f} 百万円")
+        print(f"  Eq: {eq:.2f} 百万円")
+        print(f"  CashEq: {cash_eq:.2f} 百万円")
+        print(f"  net_debt: {net_debt:.2f} 百万円")
+        print(f"  ev: {ev:.2f} 百万円")
+        print(f"  ebitda (OP): {ebitda:.2f} 百万円")
+        print(f"  ev_ebitda_ratio: {ev_ebitda_ratio:.2f}")
+
     # シグナル判定
     if ev_ebitda_ratio < 10:
         signal = 'BUY'
@@ -529,6 +544,18 @@ def calculate_dcf_proxy(client, code: str, reference_date: Optional[datetime] = 
 
     # 理論株価（円単位） = 理論企業価値（百万円→円） / 発行済株式数
     theoretical_price = (theoretical_ev * 1_000_000) / shares_outstanding
+
+    # デバッグ出力
+    if code == "41770":
+        print(f"[DEBUG DCF 41770]")
+        print(f"  FCF: {fcf:.2f} 百万円")
+        print(f"  WACC: {wacc:.2%}")
+        print(f"  theoretical_ev: {theoretical_ev:.2f} 百万円")
+        print(f"  NP: {np:.2f} 百万円")
+        print(f"  EPS: {eps:.2f} 円")
+        print(f"  shares_outstanding: {shares_outstanding:,.0f} 株")
+        print(f"  current_price: {current_price:.2f} 円")
+        print(f"  theoretical_price: {theoretical_price:.2f} 円")
 
     # 現在株価 / 理論株価
     price_to_theoretical = current_price / theoretical_price

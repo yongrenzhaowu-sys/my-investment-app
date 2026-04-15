@@ -1321,8 +1321,9 @@ def _render_analysis_result(result):
             st.warning(f"⚠️ {ev['error']}")
         else:
             st.metric("EV/EBITDA", f"{ev.get('ev_ebitda', 0):.1f}")
-            st.caption(f"EV: {ev.get('ev', 0)/1e9:.0f}億円")
-            st.caption(f"EBITDA: {ev.get('ebitda', 0)/1e9:.0f}億円")
+            # EVとEBITDAは百万円単位なので、億円に変換するには /100
+            st.caption(f"EV: {ev.get('ev', 0)/100:.0f}億円")
+            st.caption(f"EBITDA: {ev.get('ebitda', 0)/100:.0f}億円")
             if ev.get('theoretical_price') is not None:
                 st.caption(f"理論株価: ¥{ev.get('theoretical_price', 0):.0f}")
             st.markdown(_render_signal_badge(ev.get('signal')))
