@@ -1,0 +1,47 @@
+{
+  "strategy_name": "Large Cap × Low Volatility",
+  "backtest_period": {
+    "start": "2017-10-01",
+    "end": "2024-10-01",
+    "years": 8
+  },
+  "performance": {
+    "strategy": {
+      "cumulative_return": 0.44637547375982756,
+      "cagr": 0.04721325617711014,
+      "volatility": 0.0509556916894727,
+      "sharpe_ratio": 0.9265551033009384,
+      "max_drawdown": 0.0,
+      "win_rate": 0.75
+    },
+    "benchmark_all": {
+      "cumulative_return": 0.38612423153952236,
+      "cagr": 0.04165827786376042,
+      "volatility": 0.12657653088693518,
+      "sharpe_ratio": 0.32911533893255285,
+      "max_drawdown": -0.21094477994861394,
+      "win_rate": 0.5
+    },
+    "benchmark_large": {
+      "cumulative_return": 0.16956675921650666,
+      "cagr": 0.019772102714378015,
+      "volatility": 0.10969927579678625,
+      "sharpe_ratio": 0.18023913622734472,
+      "max_drawdown": -0.24342681474500555,
+      "win_rate": 0.5
+    }
+  },
+  "correlation": {
+    "vs_all": 0.6095938900730205,
+    "vs_large": 0.5610407578958452
+  },
+  "outperformance": {
+    "vs_all_cagr": 0.005554978313349723,
+    "vs_large_cagr": 0.027441153462732126
+  },
+  "portfolio_stats": {
+    "avg_size": 13.0,
+    "min_size": 0,
+    "max_size": 20
+  }
+}

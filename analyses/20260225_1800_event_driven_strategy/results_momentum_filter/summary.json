@@ -1,0 +1,10 @@
+{
+  "filter_pass_rate": 0.56,
+  "strategy": {
+    "cagr": 0.12008630789075858,
+    "volatility": 0.1324234489057112,
+    "sharpe_ratio": 0.9068356766350575,
+    "max_drawdown": -0.2826639035484583,
+    "win_rate": 0.41
+  }
+}

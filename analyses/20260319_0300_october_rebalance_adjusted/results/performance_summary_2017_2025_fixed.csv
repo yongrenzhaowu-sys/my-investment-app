@@ -1,0 +1,2 @@
+Strategy,Period,N_Years,Initial_Capital,Final_Capital,Cumulative_Return,Annual_Return,Annual_Volatility,Sharpe_Ratio,Max_Drawdown,Win_Rate,N_Rebalances
+October_Rebalance_2017_2025_Fixed,2017-10-01 ~ 2024-10-01,8,10000000,1325340.0,-86.7466,-22.323273819271595,68.22853952012703,-0.32718381451923584,-91.54870584907628,50.0,8

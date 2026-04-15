@@ -1,0 +1,2 @@
+Strategy,Period,N_Years,Cumulative_Return,Annual_Return,Annual_Volatility,Sharpe_Ratio,Max_Drawdown,Win_Rate,N_Rebalances
+October_Rebalance_Adjusted,2021-10-01 ~ 2024-10-01,4,92.65405439697652,17.813358963734572,15.678584110918587,1.1361586504057675,-0.6481371969248917,75.0,4

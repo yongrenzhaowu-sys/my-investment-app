@@ -1,0 +1,33 @@
+# RSS Feeds for Daily Automation
+# RSSのみから投資アイデアを抽出（スクレイピングは増やさない）
+
+feeds:
+  - name: nikkei_business
+    url: https://business.nikkei.com/rss/sns/nb.rdf
+    description: 日経ビジネス - 経営・マーケット情報
+
+  - name: prtimes
+    url: https://prtimes.jp/index.rdf
+    description: PR TIMES - 企業プレスリリース
+
+  - name: jpx_news_release
+    url: https://www.jpx.co.jp/rss/jpx-news.xml
+    description: JPX - ニュースリリース
+
+  - name: jpx_market_news
+    url: https://www.jpx.co.jp/rss/markets_news.xml
+    description: JPX - マーケット情報
+
+  - name: jpx_alerts
+    url: https://www.jpx.co.jp/rss/alerts.xml
+    description: JPX - 障害・アラート情報
+
+  - name: meti_journal
+    url: https://journal.meti.go.jp/feed/
+    description: METI Journal - 経済産業省の政策情報
+
+# 将来拡張（現時点では実装しない）
+# TODO: TDnet（適時開示）連携
+#   - JPXの公式RSSとしてTDnet専用のフィードが確認できない
+#   - API連携またはスクレイピングが必要だが、「RSSのみ」原則に反する
+#   - 必要性が高まった場合は docs/plans に別途実装計画を作成

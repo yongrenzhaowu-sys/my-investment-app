@@ -1,0 +1,143 @@
+# ============================================================================
+# Docker Compose - セキュアな分析環境
+# ============================================================================
+# 使用方法:
+#   docker compose run --rm analysis-secure    # ネットワーク無効 (デフォルト)
+#   docker compose run --rm analysis-network   # ネットワーク有効 (API呼び出し用)
+# ============================================================================
+
+version: '3.8'
+
+services:
+  # ========================================
+  # デフォルト: ネットワーク無効 (分析・バックテスト用)
+  # ========================================
+  analysis-secure:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: jquants-analysis:secure
+
+    # セキュリティ設定
+    security_opt:
+      - no-new-privileges:true  # setuid/setgid禁止
+    cap_drop:
+      - ALL  # すべてのLinux capabilitiesを削除
+
+    # ネットワーク無効
+    network_mode: none
+
+    # 読み取り専用ルートFS
+    read_only: true
+
+    # ボリューム/マウント
+    volumes:
+      # リポジトリ全体 (read-only)
+      - type: bind
+        source: .
+        target: /workspace
+        read_only: true
+
+      # 成果物出力先 (read-write)
+      - type: bind
+        source: ./out
+        target: /out
+        read_only: false
+
+      # 一時ファイル用 tmpfs
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 512M  # 最大512MB
+          mode: 1777
+
+      # Pythonキャッシュ用 tmpfs
+      - type: tmpfs
+        target: /home/analyst/.cache
+        tmpfs:
+          size: 256M
+          mode: 0700
+
+    # 環境変数 (安全な値のみ)
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TZ=Asia/Tokyo
+      - JQUANTS_API_KEY=dummy-key-for-local-data-only  # ローカルデータ使用時はダミーでOK
+      - BACKTEST_OUTPUT_DIR=/out/reports  # コンテナ内の書き込み可能ディレクトリ
+
+    # リソース制限 (オプション)
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+    # インタラクティブシェル
+    stdin_open: true
+    tty: true
+
+  # ========================================
+  # ネットワーク有効版 (API呼び出し・依存取得用)
+  # ========================================
+  analysis-network:
+    extends:
+      service: analysis-secure
+
+    # ネットワークを有効化
+    network_mode: bridge
+
+    # 環境変数ファイルから認証情報を読み込み
+    # 注意: .env ファイルは .gitignore に含め、絶対にコミットしない
+    env_file:
+      - .env  # J-Quants API認証情報など
+
+    # DNS設定 (オプション)
+    dns:
+      - 1.1.1.1  # Cloudflare DNS
+      - 8.8.8.8  # Google DNS
+
+  # ========================================
+  # 開発用 (read-write、セキュリティ低下)
+  # ========================================
+  analysis-dev:
+    extends:
+      service: analysis-secure
+
+    # ⚠️ セキュリティ低下: 書き込み可能
+    volumes:
+      # リポジトリ全体 (read-write)
+      - type: bind
+        source: .
+        target: /workspace
+        read_only: false  # 書き込み可能
+
+      # 成果物出力先 (read-write)
+      - type: bind
+        source: ./out
+        target: /out
+        read_only: false
+
+      # 一時ファイル用 tmpfs
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 512M
+          mode: 1777
+
+      # Pythonキャッシュ用 tmpfs
+      - type: tmpfs
+        target: /home/analyst/.cache
+        tmpfs:
+          size: 256M
+          mode: 0700
+
+# ========================================
+# 名前付きボリューム (オプション)
+# ========================================
+volumes:
+  # データキャッシュ用 (永続化が必要な場合)
+  data-cache:
+    driver: local

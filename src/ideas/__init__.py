@@ -1,0 +1,1 @@
+"""Investment idea extraction module."""

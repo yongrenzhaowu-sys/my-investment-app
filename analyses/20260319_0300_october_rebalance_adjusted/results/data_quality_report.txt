@@ -1,0 +1,12 @@
+================================================================================
+TOPIX Constituent Data Quality Report
+================================================================================
+
+Generated: 2026-03-20 05:57:52
+Period: 2021-03 ~ 2026-03
+Method: Market Cap Proxy
+
+✅ No sudden changes in constituent count
+✅ No duplicate codes within same month
+⚠️  WARNING: Low overlap with JPX official data (84.8%)
+  Only in JPX (sample): ['4671', '4826', '8095', '6464', '3788', '9216', '2674', '7187', '1716', '6047']

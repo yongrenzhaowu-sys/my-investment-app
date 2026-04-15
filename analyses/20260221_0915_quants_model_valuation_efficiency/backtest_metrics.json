@@ -1,0 +1,74 @@
+{
+  "Q1_ROE": {
+    "final_value": 40073017.9385,
+    "total_return": 3.007301793849998,
+    "annual_return": 0.16727337150418697,
+    "volatility": 0.21981982132802896,
+    "max_drawdown": -0.35446514692765757,
+    "sharpe_ratio": 0.8146090937446184,
+    "calmar_ratio": 0.47190357910795
+  },
+  "Q1_ROA": {
+    "final_value": 34080490.58800001,
+    "total_return": 2.408049058800006,
+    "annual_return": 0.14639498137059004,
+    "volatility": 0.1870471632703277,
+    "max_drawdown": -0.29022535204800043,
+    "sharpe_ratio": 0.8250641203112101,
+    "calmar_ratio": 0.5044183092122764
+  },
+  "Q2_ROE": {
+    "final_value": 31172894.205999997,
+    "total_return": 2.117289420600002,
+    "annual_return": 0.13506032349547947,
+    "volatility": 0.19960545002674615,
+    "max_drawdown": -0.36606995302866874,
+    "sharpe_ratio": 0.7358278746899752,
+    "calmar_ratio": 0.3689467610713798
+  },
+  "Q2_ROA": {
+    "final_value": 33327895.841500003,
+    "total_return": 2.33278958415,
+    "annual_return": 0.14354612429763236,
+    "volatility": 0.1967060298201792,
+    "max_drawdown": -0.3347075647325914,
+    "sharpe_ratio": 0.7806807166512505,
+    "calmar_ratio": 0.42887027191129057
+  },
+  "Q3_ROE": {
+    "final_value": 12156033.445,
+    "total_return": 0.2156033445000003,
+    "annual_return": 0.02199296473418122,
+    "volatility": 0.19511466493443752,
+    "max_drawdown": -0.3311836606852899,
+    "sharpe_ratio": 0.20906710560847402,
+    "calmar_ratio": 0.06640715513764497
+  },
+  "Q3_ROA": {
+    "final_value": 11956911.2885,
+    "total_return": 0.1956911288499985,
+    "annual_return": 0.020113912602148565,
+    "volatility": 0.1746086368815635,
+    "max_drawdown": -0.29409822583559286,
+    "sharpe_ratio": 0.20194850018873298,
+    "calmar_ratio": 0.06839181890676439
+  },
+  "Q4_ROE": {
+    "final_value": 12116527.8425,
+    "total_return": 0.21165278424999956,
+    "annual_return": 0.02162234897204174,
+    "volatility": 0.1871279820637851,
+    "max_drawdown": -0.3402701281876131,
+    "sharpe_ratio": 0.20930333829437345,
+    "calmar_ratio": 0.06354465814325003
+  },
+  "Q4_ROA": {
+    "final_value": 9072506.607500002,
+    "total_return": -0.09274933924999984,
+    "annual_return": -0.01078708347727797,
+    "volatility": 0.1740540257103644,
+    "max_drawdown": -0.394004891847539,
+    "sharpe_ratio": 0.02541027059961065,
+    "calmar_ratio": -0.027378044538218713
+  }
+}

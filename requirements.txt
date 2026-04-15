@@ -1,0 +1,17 @@
+# Python dependencies for Daily Automation System
+
+# RSS fetching
+feedparser>=6.0.0
+
+# Configuration files
+pyyaml>=6.0
+
+# Data processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# HTTP requests
+requests>=2.31.0
+
+# Parquet file support
+pyarrow>=14.0.0

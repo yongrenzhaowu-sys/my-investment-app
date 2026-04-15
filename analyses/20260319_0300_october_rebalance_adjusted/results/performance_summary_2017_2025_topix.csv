@@ -1,0 +1,2 @@
+Strategy,Universe,Period,N_Years,Initial_Capital,Final_Capital,Cumulative_Return,Annual_Return,Annual_Volatility,Sharpe_Ratio,Max_Drawdown,Win_Rate,N_Rebalances
+October_Rebalance_2017_2025_TOPIX,TOPIX_Constituents_Historical,2021-10-01 ~ 2024-10-01,4,10000000,13228145.9965,32.281459965,7.244429893722204,9.150062007787815,0.7917356065517713,0.0,75.0,4

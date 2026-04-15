@@ -1,0 +1,43 @@
+{
+  "version": "fixed_no_lookahead",
+  "backtest_period": {
+    "start": "2017-04-01",
+    "end": "2025-04-01",
+    "years": 8.25
+  },
+  "performance": {
+    "strategy": {
+      "cumulative_return": 1.6010023397859632,
+      "cagr": 0.12284572551388706,
+      "volatility": 0.21848301002009274,
+      "sharpe_ratio": 0.5622667204309826,
+      "max_drawdown": -0.27696235530058777,
+      "win_rate": 0.696969696969697
+    },
+    "benchmark_all": {
+      "cumulative_return": 0.7042541474392614,
+      "cagr": 0.0667552056731433,
+      "volatility": 0.1876103106894857,
+      "sharpe_ratio": 0.35581842718458057,
+      "max_drawdown": -0.2818814234405271,
+      "win_rate": 0.6363636363636364
+    },
+    "benchmark_small": {
+      "cumulative_return": 1.618529730562626,
+      "cagr": 0.12376017612481749,
+      "volatility": 0.2348113425993992,
+      "sharpe_ratio": 0.5270621715065912,
+      "max_drawdown": -0.2842769949229893,
+      "win_rate": 0.696969696969697
+    }
+  },
+  "outperformance": {
+    "vs_all_cagr": 0.05609051984074376,
+    "vs_small_cagr": -0.0009144506109304285
+  },
+  "portfolio_stats": {
+    "avg_size": 144.4848484848485,
+    "min_size": 0,
+    "max_size": 195
+  }
+}

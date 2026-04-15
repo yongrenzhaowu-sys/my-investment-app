@@ -1,0 +1,31 @@
+{
+  "name": "J-Quants Analysis (Dev)",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "analysis-dev",
+  "workspaceFolder": "/workspace",
+  "remoteUser": "analyst",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-python.black-formatter"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/opt/venv/bin/python",
+        "python.linting.enabled": true,
+        "python.linting.pylintEnabled": true,
+        "python.formatting.provider": "black",
+        "editor.formatOnSave": true,
+        "files.eol": "\n"
+      }
+    }
+  },
+
+  "postCreateCommand": "pip list",
+
+  "forwardPorts": [],
+
+  "features": {}
+}

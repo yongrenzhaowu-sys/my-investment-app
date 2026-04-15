@@ -1,0 +1,40 @@
+{
+  "idea_id": "test_001",
+  "tickers": [
+    "7203"
+  ],
+  "published_at": "2024-12-01T10:00:00",
+  "event_date": "2024-12-02",
+  "holding_periods": {
+    "1d": {
+      "count": 1,
+      "mean_return": -0.007918552036199067,
+      "median_return": -0.007918552036199067,
+      "std_return": 0.0,
+      "min_return": -0.007918552036199067,
+      "max_return": -0.007918552036199067
+    },
+    "3d": {
+      "count": 1,
+      "mean_return": -0.008672699849170407,
+      "median_return": -0.008672699849170407,
+      "std_return": 0.0,
+      "min_return": -0.008672699849170407,
+      "max_return": -0.008672699849170407
+    },
+    "5d": {
+      "count": 1,
+      "mean_return": 0.010369532428355921,
+      "median_return": 0.010369532428355921,
+      "std_return": 0.0,
+      "min_return": 0.010369532428355921,
+      "max_return": 0.010369532428355921
+    }
+  },
+  "summary": {
+    "average_return_5d": 0.010369532428355921,
+    "positive_rate": 1.0,
+    "total_tickers": 1,
+    "valid_tickers": 1
+  }
+}

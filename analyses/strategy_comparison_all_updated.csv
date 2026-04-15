@@ -1,0 +1,8 @@
+Strategy,Period,Duration_Years,Annual_Return,Sharpe_Ratio,Max_Drawdown,Cumulative_Return,Win_Rate,Notes
+US_JP_LeadLag_PCA_SUB,2018-09~2025-12,7.3,26.67,2.45,-10.74,804.65,N/A,Long-short sector lead-lag | Daily rebalance
+October_Rebalance_Long_Only,2017-10~2025-10,9.0,23.68,1.17,-5.22,576.98,88.9,High ROE x Low PBR | Annual rebalance | Tax-adjusted
+Sector_Momentum,2025-12~2026-03,0.25,125.67,3.55,-3.08,11.58,57.1,Short-term only - needs long-term validation
+High_OP_Margin,2017-01~2026-01,9.0,1.57,0.28,-10.90,14.99,N/A,Stable quality factor | Monthly rebalance
+Low_PER_High_ROE,2017-01~2026-01,9.0,2.27,0.22,-67.06,22.35,N/A,High DD risk | Monthly rebalance
+FF5_Large_Growth,2021-10~2026-03,4.5,-2.37,-0.11,-35.98,-10.24,53.7,Failed in rising rate environment
+Weekly_Long_Only,2017-01~2026-01,9.0,-13.61,-0.14,-86.37,-73.35,N/A,Failed long-only momentum | Weekly rebalance

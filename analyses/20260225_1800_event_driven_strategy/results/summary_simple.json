@@ -1,0 +1,48 @@
+{
+  "strategy_name": "Event Driven (Monthly Entry)",
+  "backtest_period": {
+    "start": "2017-07",
+    "end": "2025-07",
+    "months": 97,
+    "years": 8.083333333333334
+  },
+  "performance": {
+    "strategy": {
+      "cumulative_return": 36.13068482550745,
+      "cagr": 0.563845224193456,
+      "volatility": 0.2311109403678961,
+      "sharpe_ratio": 2.439716714820569,
+      "max_drawdown": -0.27476975477708027,
+      "win_rate": 0.7422680412371134
+    },
+    "benchmark_all": {
+      "cumulative_return": 1.0145595422753,
+      "cagr": 0.0905122006134973,
+      "volatility": 0.1653631016656021,
+      "sharpe_ratio": 0.5473542749369289,
+      "max_drawdown": -0.2750553751482084,
+      "win_rate": 0.6701030927835051
+    },
+    "benchmark_small": {
+      "cumulative_return": 1.692822318584049,
+      "cagr": 0.13037246764069366,
+      "volatility": 0.19348589764502996,
+      "sharpe_ratio": 0.6738086301249486,
+      "max_drawdown": -0.31911474406048096,
+      "win_rate": 0.6597938144329897
+    }
+  },
+  "correlation": {
+    "vs_all": 0.7930532142695119,
+    "vs_small": 0.8896184546268898
+  },
+  "outperformance": {
+    "vs_all_cagr": 0.47333302357995866,
+    "vs_small_cagr": 0.4334727565527623
+  },
+  "portfolio_stats": {
+    "avg_size_per_month": 53.31958762886598,
+    "min_size": 0,
+    "max_size": 133
+  }
+}

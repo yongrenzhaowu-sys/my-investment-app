@@ -1,0 +1,2 @@
+Strategy,Portfolio_Size,Cumulative_Return,Annual_Return,Annual_Volatility,Sharpe_Ratio,Max_Drawdown,Win_Rate,N_Rebalances,Period_Start,Period_End
+FF5_Large_Growth,20,-10.244223947385677,-2.3731169763320015,21.23445106328806,-0.11175786787513663,-35.9771374841392,53.70370370370371,54,2021-10-01,2026-03-01
