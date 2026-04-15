@@ -1297,9 +1297,12 @@ def _render_analysis_result(result):
                 st.caption(f"理論株価: ¥{peg.get('theoretical_price', 0):.0f}")
             # デバッグ情報
             with st.expander("🔍 詳細"):
-                st.write(f"現在株価: ¥{result.get('current_price', 0):.2f}")
-                st.write(f"EPS（最新）: {peg.get('eps', 'N/A')}")
-                st.write(f"NP（最新）: {peg.get('np_latest', 'N/A')}")
+                st.write(f"**現在株価**: ¥{result.get('current_price', 0):.2f}")
+                st.write(f"**EPS（最新）**: {peg.get('eps', 'N/A'):.2f} 円")
+                st.write(f"**NP（最新）**: {peg.get('np_latest', 0):,.0f} 百万円")
+                st.write(f"**決算期**: {peg.get('fiscal_period', 'N/A')}")
+                st.write(f"**開示日**: {peg.get('disc_date', 'N/A')}")
+                st.write(f"**計算式**: PER = {result.get('current_price', 0):.2f} ÷ {peg.get('eps', 0):.2f} = {peg.get('per', 0):.2f}")
             st.markdown(_render_signal_badge(peg.get('signal')))
 
     with col2:

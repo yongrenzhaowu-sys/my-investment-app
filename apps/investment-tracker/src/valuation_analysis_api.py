@@ -235,12 +235,19 @@ def calculate_peg_ratio(client, code: str, reference_date: Optional[datetime] = 
     latest_eps = eps_values[-1]
     per = current_price / latest_eps
 
+    # 最新の決算期情報を取得
+    latest_fin = financials.iloc[-1]
+    fiscal_period = latest_fin.get('CurPerEn', 'N/A')
+    disc_date = latest_fin.get('DiscDate', 'N/A')
+
     # デバッグ出力（全銘柄）
     print(f"[DEBUG PER {code}]")
     print(f"  株価: {current_price:.2f} 円")
     print(f"  EPS: {latest_eps:.2f} 円")
     print(f"  PER: {per:.2f}")
     print(f"  NP最新: {np_values[-1]:,.0f}")
+    print(f"  決算期: {fiscal_period}")
+    print(f"  開示日: {disc_date}")
 
     # PEG計算
     if growth_rate <= 0:
@@ -271,7 +278,9 @@ def calculate_peg_ratio(client, code: str, reference_date: Optional[datetime] = 
         'signal': signal,
         'error': None,
         'eps': latest_eps,
-        'np_latest': np_values[-1]
+        'np_latest': np_values[-1],
+        'fiscal_period': str(fiscal_period),
+        'disc_date': str(disc_date)
     }
 
 
