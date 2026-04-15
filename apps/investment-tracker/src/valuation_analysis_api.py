@@ -235,6 +235,13 @@ def calculate_peg_ratio(client, code: str, reference_date: Optional[datetime] = 
     latest_eps = eps_values[-1]
     per = current_price / latest_eps
 
+    # デバッグ出力（全銘柄）
+    print(f"[DEBUG PER {code}]")
+    print(f"  株価: {current_price:.2f} 円")
+    print(f"  EPS: {latest_eps:.2f} 円")
+    print(f"  PER: {per:.2f}")
+    print(f"  NP最新: {np_values[-1]:,.0f}")
+
     # PEG計算
     if growth_rate <= 0:
         return {'peg_ratio': None, 'per': per, 'growth_rate': growth_rate, 'theoretical_price': None, 'current_price': latest_price['Price'], 'signal': 'SELL', 'error': '成長率マイナス'}
@@ -262,7 +269,9 @@ def calculate_peg_ratio(client, code: str, reference_date: Optional[datetime] = 
         'theoretical_price': theoretical_price,
         'current_price': current_price,
         'signal': signal,
-        'error': None
+        'error': None,
+        'eps': latest_eps,
+        'np_latest': np_values[-1]
     }
 
 

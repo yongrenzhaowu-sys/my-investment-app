@@ -1295,6 +1295,11 @@ def _render_analysis_result(result):
             st.caption(f"成長率: {peg.get('growth_rate', 0)*100:.1f}%")
             if peg.get('theoretical_price') is not None:
                 st.caption(f"理論株価: ¥{peg.get('theoretical_price', 0):.0f}")
+            # デバッグ情報
+            with st.expander("🔍 詳細"):
+                st.write(f"現在株価: ¥{result.get('current_price', 0):.2f}")
+                st.write(f"EPS（最新）: {peg.get('eps', 'N/A')}")
+                st.write(f"NP（最新）: {peg.get('np_latest', 'N/A')}")
             st.markdown(_render_signal_badge(peg.get('signal')))
 
     with col2:
