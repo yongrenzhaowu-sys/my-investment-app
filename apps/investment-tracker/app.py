@@ -1118,6 +1118,33 @@ def render_valuation_analysis():
                     status_text.text(f"分析中: {code} ({idx + 1}/{len(hypotheses)})")
 
                     try:
+                        # 最初の銘柄のみデバッグ情報を表示
+                        if idx == 0:
+                            st.info(f"🔍 デバッグ: 銘柄 {code} のデータ構造を確認中...")
+
+                            # 財務データを取得して列名を確認
+                            from src.valuation_analysis_api import get_financials_from_api, get_price_data_from_api
+
+                            test_fin = get_financials_from_api(st.session_state.client, code, debug=False)
+                            if len(test_fin) > 0:
+                                st.write(f"✅ 財務データ取得: {len(test_fin)}件")
+                                st.write(f"列名: {test_fin.columns.tolist()}")
+
+                                # 必要な列が存在するか確認
+                                required_cols = ['NP', 'OP', 'TA', 'Eq', 'CashEq', 'CFO', 'CFI']
+                                missing_cols = [col for col in required_cols if col not in test_fin.columns]
+                                if missing_cols:
+                                    st.warning(f"⚠️ 欠損列: {missing_cols}")
+                            else:
+                                st.error(f"❌ 財務データ取得失敗")
+
+                            test_prices = get_price_data_from_api(st.session_state.client, code, days=10)
+                            if len(test_prices) > 0:
+                                st.write(f"✅ 株価データ取得: {len(test_prices)}件")
+                                st.write(f"列名: {test_prices.columns.tolist()}")
+                            else:
+                                st.error(f"❌ 株価データ取得失敗")
+
                         # 分析実行（APIクライアントを渡す）
                         result = analyze_stock(st.session_state.client, code)
                         results.append(result)

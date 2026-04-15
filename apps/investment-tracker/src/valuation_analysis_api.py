@@ -80,51 +80,93 @@ def get_price_data_from_api(client, code: str, days: int = 100) -> pd.DataFrame:
         return pd.DataFrame()
 
 
-def get_financials_from_api(client, code: str) -> pd.DataFrame:
+def get_financials_from_api(client, code: str, debug: bool = False) -> pd.DataFrame:
     """
     J-Quants API V2から財務データを取得
 
     Args:
         client: JQuantsClient
         code: 銘柄コード（5桁文字列）
+        debug: デバッグモード
 
     Returns:
         財務データ（DataFrame）
     """
     try:
-        # J-Quants API V2: /fins/summary
-        df = client.get_financial_statements(code=code)
+        # J-Quants API V2: /fins/summary（直近5件のみ）
+        # 成長率計算には最低5期必要なので、limitを増やす
+        df = client.get_financial_statements(code=code, limit=10)
 
         if df is None or len(df) == 0:
+            if debug:
+                print(f"[{code}] 財務データなし")
             return pd.DataFrame()
 
-        # 列名の標準化
+        if debug:
+            print(f"[{code}] 取得列: {df.columns.tolist()}")
+            print(f"[{code}] 取得件数: {len(df)}")
+
+        # 列名の標準化（J-Quants API V2の実際の列名に対応）
+        # 日付列
         if 'DisclosedDate' in df.columns:
             df['DiscDate'] = pd.to_datetime(df['DisclosedDate'])
-        elif 'DiscDate' in df.columns:
-            df['DiscDate'] = pd.to_datetime(df['DiscDate'])
+        elif 'disclosed_date' in df.columns:
+            df['DiscDate'] = pd.to_datetime(df['disclosed_date'])
+        elif 'DisclosureDate' in df.columns:
+            df['DiscDate'] = pd.to_datetime(df['DisclosureDate'])
 
         if 'CurrentPeriodEndDate' in df.columns:
             df['CurPerEn'] = pd.to_datetime(df['CurrentPeriodEndDate'])
-        elif 'CurPerEn' in df.columns:
-            df['CurPerEn'] = pd.to_datetime(df['CurPerEn'])
+        elif 'current_period_end_date' in df.columns:
+            df['CurPerEn'] = pd.to_datetime(df['current_period_end_date'])
+        elif 'FiscalPeriodEnd' in df.columns:
+            df['CurPerEn'] = pd.to_datetime(df['FiscalPeriodEnd'])
 
-        # 財務データの列名を標準化
+        # 財務データの列名を標準化（複数のパターンに対応）
         column_mapping = {
+            # 純利益
             'NetProfit': 'NP',
+            'net_profit': 'NP',
+            'Profit': 'NP',
+            # 営業利益
             'OperatingProfit': 'OP',
+            'operating_profit': 'OP',
+            # 総資産
             'TotalAssets': 'TA',
+            'total_assets': 'TA',
+            'Assets': 'TA',
+            # 自己資本
             'Equity': 'Eq',
+            'equity': 'Eq',
+            'NetAssets': 'Eq',
+            # 現金
             'CashAndEquivalents': 'CashEq',
+            'cash_and_equivalents': 'CashEq',
+            'CashAndDeposits': 'CashEq',
+            # 営業CF
             'OperatingCashFlow': 'CFO',
+            'operating_cash_flow': 'CFO',
+            'CashFlowsFromOperatingActivities': 'CFO',
+            # 投資CF
             'InvestingCashFlow': 'CFI',
+            'investing_cash_flow': 'CFI',
+            'CashFlowsFromInvestingActivities': 'CFI',
         }
 
         for old_col, new_col in column_mapping.items():
             if old_col in df.columns and new_col not in df.columns:
                 df[new_col] = df[old_col]
 
-        return df.sort_values('CurPerEn')
+        if debug:
+            print(f"[{code}] マッピング後の列: {df.columns.tolist()}")
+            if 'NP' in df.columns:
+                print(f"[{code}] NP値: {df['NP'].tolist()}")
+
+        # ソート（決算期順）
+        if 'CurPerEn' in df.columns:
+            return df.sort_values('CurPerEn')
+        else:
+            return df
 
     except Exception as e:
         print(f"財務データ取得エラー（{code}）: {e}")
