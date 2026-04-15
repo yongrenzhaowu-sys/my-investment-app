@@ -107,20 +107,26 @@ def get_financials_from_api(client, code: str, debug: bool = False) -> pd.DataFr
             print(f"[{code}] 取得件数: {len(df)}")
 
         # 列名の標準化（J-Quants API V2の実際の列名に対応）
-        # 日付列
-        if 'DisclosedDate' in df.columns:
-            df['DiscDate'] = pd.to_datetime(df['DisclosedDate'])
+        # 日付列（CRITICAL: 必ずdatetime型に変換）
+        if 'DiscDate' in df.columns:
+            # 既にDiscDate列がある場合（J-Quants API V2）
+            df['DiscDate'] = pd.to_datetime(df['DiscDate'], errors='coerce')
+        elif 'DisclosedDate' in df.columns:
+            df['DiscDate'] = pd.to_datetime(df['DisclosedDate'], errors='coerce')
         elif 'disclosed_date' in df.columns:
-            df['DiscDate'] = pd.to_datetime(df['disclosed_date'])
+            df['DiscDate'] = pd.to_datetime(df['disclosed_date'], errors='coerce')
         elif 'DisclosureDate' in df.columns:
-            df['DiscDate'] = pd.to_datetime(df['DisclosureDate'])
+            df['DiscDate'] = pd.to_datetime(df['DisclosureDate'], errors='coerce')
 
-        if 'CurrentPeriodEndDate' in df.columns:
-            df['CurPerEn'] = pd.to_datetime(df['CurrentPeriodEndDate'])
+        if 'CurPerEn' in df.columns:
+            # 既にCurPerEn列がある場合（J-Quants API V2）
+            df['CurPerEn'] = pd.to_datetime(df['CurPerEn'], errors='coerce')
+        elif 'CurrentPeriodEndDate' in df.columns:
+            df['CurPerEn'] = pd.to_datetime(df['CurrentPeriodEndDate'], errors='coerce')
         elif 'current_period_end_date' in df.columns:
-            df['CurPerEn'] = pd.to_datetime(df['current_period_end_date'])
+            df['CurPerEn'] = pd.to_datetime(df['current_period_end_date'], errors='coerce')
         elif 'FiscalPeriodEnd' in df.columns:
-            df['CurPerEn'] = pd.to_datetime(df['FiscalPeriodEnd'])
+            df['CurPerEn'] = pd.to_datetime(df['FiscalPeriodEnd'], errors='coerce')
 
         # 財務データの列名を標準化（複数のパターンに対応）
         column_mapping = {
