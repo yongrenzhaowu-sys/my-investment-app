@@ -116,10 +116,8 @@ class JQuantsClient:
         # V2では /fins/statements → /fins/summary に変更
         url = f"{self.BASE_URL}/fins/summary"
 
-        # 5桁コードの場合は4桁に変換
-        code_param = code[:4] if len(code) == 5 else code
-
-        params = {"code": code_param}
+        # 銘柄コードは5桁のまま渡す（J-Quants API V2は5桁を期待）
+        params = {"code": code}
 
         try:
             response = self.session.get(url, params=params, timeout=30)
@@ -143,17 +141,19 @@ class JQuantsClient:
 
             # 最新N件のみ取得
             if not df.empty:
-                # 日付列を探す（DisclosedDate, disclosed_date, etc.）
+                # 日付列を探す（DiscDate, DisclosedDate, disclosed_date, etc.）
                 date_col = None
-                for col in ["DisclosedDate", "disclosed_date", "DisclosureDate"]:
+                for col in ["DiscDate", "DisclosedDate", "disclosed_date", "DisclosureDate", "CurPerEn", "CurrentPeriodEndDate"]:
                     if col in df.columns:
                         date_col = col
                         break
 
                 if date_col:
-                    df[date_col] = pd.to_datetime(df[date_col])
+                    df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
                     df = df.sort_values(date_col, ascending=False).head(limit)
                 else:
+                    # 日付列が見つからない場合、警告を出す
+                    print(f"警告: 銘柄{code}の財務データに日付列が見つかりません。列名: {df.columns.tolist()}")
                     df = df.head(limit)
 
             return df
@@ -174,10 +174,8 @@ class JQuantsClient:
         # V2では /listed/info → /equities/master に変更
         url = f"{self.BASE_URL}/equities/master"
 
-        # 5桁コードの場合は4桁に変換
-        code_param = code[:4] if len(code) == 5 else code
-
-        params = {"code": code_param}
+        # 銘柄コードは5桁のまま渡す
+        params = {"code": code}
 
         try:
             response = self.session.get(url, params=params, timeout=30)
