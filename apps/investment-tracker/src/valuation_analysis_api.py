@@ -404,6 +404,9 @@ def calculate_ev_ebitda(client, code: str, reference_date: Optional[datetime] = 
     eq = pd.to_numeric(latest_fin.get('Eq'), errors='coerce')
     cash_eq = pd.to_numeric(latest_fin.get('CashEq'), errors='coerce')
 
+    # デバッグ：財務データの値を確認（単位検証）
+    print(f"[DEBUG {code}] 財務データ: Sales={latest_fin.get('Sales')}, OP={op}, NP={latest_fin.get('NP')}, TA={ta}")
+
     if pd.isna(op) or pd.isna(ta) or pd.isna(eq):
         return {'ev_ebitda': None, 'ev': None, 'ebitda': None, 'theoretical_price': None, 'current_price': None, 'signal': None, 'error': '必要な財務データ欠損'}
 
