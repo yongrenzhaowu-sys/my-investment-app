@@ -445,8 +445,25 @@ def calculate_ev_ebitda(client, code: str, reference_date: Optional[datetime] = 
         print(f"[WARNING {code}] NP異常値検出: {np:,.0f}円（1京円以上）")
         return {'ev_ebitda': None, 'ev': None, 'ebitda': None, 'theoretical_price': None, 'current_price': None, 'signal': None, 'error': f'NP異常値（{np/100_000_000:,.0f}億円）', 'shares_outstanding': 0, 'np': np, 'eps': eps, 'net_debt': 0, 'market_cap': 0, 'op_x10': 0, 'op_divergence': 0}
 
-    # 発行済株式数 = 純利益（円） / EPS（円/株）
-    shares_outstanding = np / eps
+    # 発行済株式数を取得（複数の可能性のある列名を試す）
+    shares_outstanding = None
+    shares_field_used = None
+    for field in ['NumberOfIssuedAndOutstandingSharesAtTheEndOfFiscalYearIncludingTreasuryStock',
+                  'AverageNumberOfShares', 'IssuedShares', 'SharesOutstanding', 'NumShares',
+                  'IssueSharesAtEndPeriod', 'NumOfIssuedShares']:
+        if field in latest_fin:
+            shares_val = pd.to_numeric(latest_fin.get(field), errors='coerce')
+            if pd.notna(shares_val) and shares_val > 0:
+                shares_outstanding = shares_val
+                shares_field_used = field
+                print(f"[INFO {code}] 発行済株式数を取得: {field} = {shares_outstanding:,.0f}株")
+                break
+
+    # フォールバック: 発行済株式数が取得できない場合はNP/EPSで推定
+    if shares_outstanding is None or pd.isna(shares_outstanding):
+        shares_outstanding = np / eps
+        shares_field_used = "NP/EPS推定"
+        print(f"[INFO {code}] 発行済株式数をNP/EPSで推定: {shares_outstanding:,.0f}株")
     # 時価総額（円単位）
     market_cap_yen = current_price * shares_outstanding
     # 時価総額（百万円単位に変換）
@@ -599,7 +616,7 @@ def calculate_dcf_proxy(client, code: str, reference_date: Optional[datetime] = 
     latest_price = prices.iloc[-1]
     current_price = latest_price['Price']
 
-    # 発行済株式数（NP/EPSから計算）
+    # 発行済株式数を取得
     np = pd.to_numeric(latest_fin.get('NP'), errors='coerce')  # 円単位
     eps = pd.to_numeric(latest_fin.get('EPS'), errors='coerce')  # 円単位
 
@@ -613,8 +630,20 @@ def calculate_dcf_proxy(client, code: str, reference_date: Optional[datetime] = 
             'error': 'EPS/NPデータ欠損'
         }
 
-    # 発行済株式数 = 純利益（円） / EPS（円/株）
-    shares_outstanding = np / eps
+    # 発行済株式数を取得（複数の可能性のある列名を試す）
+    shares_outstanding = None
+    for field in ['NumberOfIssuedAndOutstandingSharesAtTheEndOfFiscalYearIncludingTreasuryStock',
+                  'AverageNumberOfShares', 'IssuedShares', 'SharesOutstanding', 'NumShares',
+                  'IssueSharesAtEndPeriod', 'NumOfIssuedShares']:
+        if field in latest_fin:
+            shares_val = pd.to_numeric(latest_fin.get(field), errors='coerce')
+            if pd.notna(shares_val) and shares_val > 0:
+                shares_outstanding = shares_val
+                break
+
+    # フォールバック: 発行済株式数が取得できない場合はNP/EPSで推定
+    if shares_outstanding is None or pd.isna(shares_outstanding):
+        shares_outstanding = np / eps
 
     # 理論企業価値（百万円単位）
     theoretical_ev = fcf / wacc

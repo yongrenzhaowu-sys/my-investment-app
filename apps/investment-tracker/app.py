@@ -1352,7 +1352,8 @@ def _render_analysis_result(result):
                 st.write(f"**純負債**: {ev.get('net_debt', 0)/100:.0f}億円")
                 st.write(f"**EV**: {ev.get('ev', 0)/100:.0f}億円")
                 st.write(f"**発行済株式数**: {ev.get('shares_outstanding', 0):,.0f}株")
-                st.write(f"**NP（百万円）**: {ev.get('np', 0):,.0f}")
+                st.write(f"**NP（円）**: {ev.get('np', 0):,.0f}")
+                st.write(f"**NP（億円）**: {ev.get('np', 0)/1e8:.2f}")
                 st.write(f"**EPS（円）**: {ev.get('eps', 0):.2f}")
 
             st.markdown(_render_signal_badge(ev.get('signal')))

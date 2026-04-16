@@ -133,6 +133,9 @@ class JQuantsClient:
             # V2では "data" キーに統一
             if "data" in data and data["data"]:
                 df = pd.DataFrame(data["data"])
+                # デバッグ: 利用可能な列名を確認
+                if len(df) > 0:
+                    print(f"[DEBUG {code}] 財務データの列名: {df.columns.tolist()}")
             elif "statements" in data and data["statements"]:
                 # 旧形式（V1互換）
                 df = pd.DataFrame(data["statements"])
