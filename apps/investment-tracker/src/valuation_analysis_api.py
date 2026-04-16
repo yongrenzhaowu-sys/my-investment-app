@@ -383,14 +383,18 @@ def calculate_ev_ebitda(client, code: str, reference_date: Optional[datetime] = 
     # 財務データ取得
     financials = get_financials_from_api(client, code)
 
+    print(f"[DEBUG EV/EBITDA {code}] 財務データ取得件数: {len(financials)}, 列: {financials.columns.tolist() if len(financials) > 0 else 'N/A'}")
+
     if len(financials) == 0:
-        return {'ev_ebitda': None, 'ev': None, 'ebitda': None, 'theoretical_price': None, 'current_price': None, 'signal': None, 'error': '財務データなし'}
+        return {'ev_ebitda': None, 'ev': None, 'ebitda': None, 'theoretical_price': None, 'current_price': None, 'signal': None, 'error': '財務データなし', 'shares_outstanding': 0, 'np': 0, 'eps': 0, 'net_debt': 0, 'market_cap': 0, 'op_x10': 0, 'op_divergence': 0}
 
     # 基準日より前のデータのみ
     financials = financials[financials['DiscDate'] <= reference_date]
 
+    print(f"[DEBUG EV/EBITDA {code}] reference_date={reference_date}, フィルタ後件数: {len(financials)}")
+
     if len(financials) == 0:
-        return {'ev_ebitda': None, 'ev': None, 'ebitda': None, 'theoretical_price': None, 'current_price': None, 'signal': None, 'error': '財務データなし'}
+        return {'ev_ebitda': None, 'ev': None, 'ebitda': None, 'theoretical_price': None, 'current_price': None, 'signal': None, 'error': '財務データなし（基準日フィルタ後）', 'shares_outstanding': 0, 'np': 0, 'eps': 0, 'net_debt': 0, 'market_cap': 0, 'op_x10': 0, 'op_divergence': 0}
 
     latest_fin = financials.iloc[-1]
 
@@ -418,8 +422,11 @@ def calculate_ev_ebitda(client, code: str, reference_date: Optional[datetime] = 
     np = pd.to_numeric(latest_fin.get('NP'), errors='coerce')  # 百万円単位
     eps = pd.to_numeric(latest_fin.get('EPS'), errors='coerce')  # 円単位
 
-    if pd.isna(np) or pd.isna(eps) or eps <= 0:
-        return {'ev_ebitda': None, 'ev': None, 'ebitda': None, 'theoretical_price': None, 'current_price': None, 'signal': None, 'error': 'EPS/NPデータ欠損'}
+    # デバッグ出力
+    print(f"[DEBUG EV/EBITDA {code}] NP: {np}, EPS: {eps}, latest_fin列: {latest_fin.index.tolist() if hasattr(latest_fin, 'index') else 'N/A'}")
+
+    if pd.isna(np) or pd.isna(eps) or eps <= 0 or np <= 0:
+        return {'ev_ebitda': None, 'ev': None, 'ebitda': None, 'theoretical_price': None, 'current_price': None, 'signal': None, 'error': 'EPS/NPデータ欠損', 'shares_outstanding': 0, 'np': 0, 'eps': 0, 'net_debt': 0, 'market_cap': 0, 'op_x10': 0, 'op_divergence': 0}
 
     # 発行済株式数 = 純利益（百万円→円） / EPS（円/株）
     shares_outstanding = (np * 1_000_000) / eps
