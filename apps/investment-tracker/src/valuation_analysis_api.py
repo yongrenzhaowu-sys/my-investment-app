@@ -419,14 +419,28 @@ def calculate_ev_ebitda(client, code: str, reference_date: Optional[datetime] = 
     current_price = latest_price['Price']
 
     # 時価総額計算（CRITICAL: 純利益とEPSから発行済株式数を推定）
-    np = pd.to_numeric(latest_fin.get('NP'), errors='coerce')  # 百万円単位
-    eps = pd.to_numeric(latest_fin.get('EPS'), errors='coerce')  # 円単位
+    np_raw = latest_fin.get('NP')
+    eps_raw = latest_fin.get('EPS')
+    np = pd.to_numeric(np_raw, errors='coerce')  # 百万円単位
+    eps = pd.to_numeric(eps_raw, errors='coerce')  # 円単位
 
-    # デバッグ出力
-    print(f"[DEBUG EV/EBITDA {code}] NP: {np}, EPS: {eps}, latest_fin列: {latest_fin.index.tolist() if hasattr(latest_fin, 'index') else 'N/A'}")
+    # デバッグ出力（生データと変換後を両方表示）
+    if code == "41770":  # 問題の銘柄のみ詳細出力
+        print(f"[DEBUG EV/EBITDA {code}] NP_raw: {np_raw} (型: {type(np_raw).__name__}), NP変換後: {np}")
+        print(f"[DEBUG EV/EBITDA {code}] EPS_raw: {eps_raw} (型: {type(eps_raw).__name__}), EPS変換後: {eps}")
+        print(f"[DEBUG EV/EBITDA {code}] OP: {op}, TA: {ta}, Eq: {eq}")
+        if hasattr(latest_fin, 'to_dict'):
+            fin_dict = latest_fin.to_dict()
+            print(f"[DEBUG EV/EBITDA {code}] 財務データ抜粋: NP={fin_dict.get('NP')}, Sales={fin_dict.get('Sales')}, OP={fin_dict.get('OP')}")
 
+    # データ検証：異常値チェック
     if pd.isna(np) or pd.isna(eps) or eps <= 0 or np <= 0:
         return {'ev_ebitda': None, 'ev': None, 'ebitda': None, 'theoretical_price': None, 'current_price': None, 'signal': None, 'error': 'EPS/NPデータ欠損', 'shares_outstanding': 0, 'np': 0, 'eps': 0, 'net_debt': 0, 'market_cap': 0, 'op_x10': 0, 'op_divergence': 0}
+
+    # 異常値検出：NPが100兆円（100,000,000百万円）を超える場合
+    if np > 100_000_000:
+        print(f"[WARNING {code}] NP異常値検出: {np:,.0f}百万円（100兆円以上）")
+        return {'ev_ebitda': None, 'ev': None, 'ebitda': None, 'theoretical_price': None, 'current_price': None, 'signal': None, 'error': f'NP異常値（{np/100:,.0f}億円）', 'shares_outstanding': 0, 'np': np, 'eps': eps, 'net_debt': 0, 'market_cap': 0, 'op_x10': 0, 'op_divergence': 0}
 
     # 発行済株式数 = 純利益（百万円→円） / EPS（円/株）
     shares_outstanding = (np * 1_000_000) / eps
