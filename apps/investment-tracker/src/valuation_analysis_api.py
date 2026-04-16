@@ -424,7 +424,7 @@ def calculate_ev_ebitda(client, code: str, reference_date: Optional[datetime] = 
     # 時価総額計算（CRITICAL: 純利益とEPSから発行済株式数を推定）
     np_raw = latest_fin.get('NP')
     eps_raw = latest_fin.get('EPS')
-    np = pd.to_numeric(np_raw, errors='coerce')  # 百万円単位
+    np = pd.to_numeric(np_raw, errors='coerce')  # 円単位（J-Quants APIは円で返す）
     eps = pd.to_numeric(eps_raw, errors='coerce')  # 円単位
 
     # デバッグ出力（生データと変換後を両方表示）
@@ -440,33 +440,33 @@ def calculate_ev_ebitda(client, code: str, reference_date: Optional[datetime] = 
     if pd.isna(np) or pd.isna(eps) or eps <= 0 or np <= 0:
         return {'ev_ebitda': None, 'ev': None, 'ebitda': None, 'theoretical_price': None, 'current_price': None, 'signal': None, 'error': 'EPS/NPデータ欠損', 'shares_outstanding': 0, 'np': 0, 'eps': 0, 'net_debt': 0, 'market_cap': 0, 'op_x10': 0, 'op_divergence': 0}
 
-    # 異常値検出：NPが100兆円（100,000,000百万円）を超える場合
-    if np > 100_000_000:
-        print(f"[WARNING {code}] NP異常値検出: {np:,.0f}百万円（100兆円以上）")
-        return {'ev_ebitda': None, 'ev': None, 'ebitda': None, 'theoretical_price': None, 'current_price': None, 'signal': None, 'error': f'NP異常値（{np/100:,.0f}億円）', 'shares_outstanding': 0, 'np': np, 'eps': eps, 'net_debt': 0, 'market_cap': 0, 'op_x10': 0, 'op_divergence': 0}
+    # 異常値検出：NPが1京円を超える場合（念のため）
+    if np > 10_000_000_000_000_000:  # 1京円
+        print(f"[WARNING {code}] NP異常値検出: {np:,.0f}円（1京円以上）")
+        return {'ev_ebitda': None, 'ev': None, 'ebitda': None, 'theoretical_price': None, 'current_price': None, 'signal': None, 'error': f'NP異常値（{np/100_000_000:,.0f}億円）', 'shares_outstanding': 0, 'np': np, 'eps': eps, 'net_debt': 0, 'market_cap': 0, 'op_x10': 0, 'op_divergence': 0}
 
-    # 発行済株式数 = 純利益（百万円→円） / EPS（円/株）
-    shares_outstanding = (np * 1_000_000) / eps
+    # 発行済株式数 = 純利益（円） / EPS（円/株）
+    shares_outstanding = np / eps
     # 時価総額（円単位）
     market_cap_yen = current_price * shares_outstanding
     # 時価総額（百万円単位に変換）
     market_cap = market_cap_yen / 1_000_000
 
-    # 純負債計算（百万円単位）
-    total_debt = ta - eq
-    net_debt = total_debt - cash_eq if not pd.isna(cash_eq) else total_debt
+    # 純負債計算（円→百万円に変換）
+    total_debt = (ta - eq) / 1_000_000
+    net_debt = (total_debt - cash_eq / 1_000_000) if not pd.isna(cash_eq) else total_debt
 
     # EV計算（百万円単位）
     ev = market_cap + net_debt
 
-    # EBITDA ≈ 営業利益（百万円単位）
-    ebitda = op
+    # EBITDA ≈ 営業利益（円→百万円に変換）
+    ebitda = op / 1_000_000
 
     # EV/EBITDA計算
     ev_ebitda_ratio = ev / ebitda
 
     # 営業利益×10との乖離計算（簡易バリュエーション指標）
-    op_x10 = op * 10  # 百万円単位
+    op_x10 = ebitda * 10  # 百万円単位
     op_divergence = ((market_cap - op_x10) / op_x10) * 100  # %
 
     # デバッグ出力
@@ -557,9 +557,9 @@ def calculate_dcf_proxy(client, code: str, reference_date: Optional[datetime] = 
 
     latest_fin = financials.iloc[-1]
 
-    # CFデータを数値に変換（百万円単位）
-    cfo = pd.to_numeric(latest_fin.get('CFO'), errors='coerce')
-    cfi = pd.to_numeric(latest_fin.get('CFI'), errors='coerce')
+    # CFデータを数値に変換（円単位→百万円単位）
+    cfo = pd.to_numeric(latest_fin.get('CFO'), errors='coerce') / 1_000_000
+    cfi = pd.to_numeric(latest_fin.get('CFI'), errors='coerce') / 1_000_000
 
     if pd.isna(cfo) or pd.isna(cfi):
         return {
@@ -600,7 +600,7 @@ def calculate_dcf_proxy(client, code: str, reference_date: Optional[datetime] = 
     current_price = latest_price['Price']
 
     # 発行済株式数（NP/EPSから計算）
-    np = pd.to_numeric(latest_fin.get('NP'), errors='coerce')  # 百万円単位
+    np = pd.to_numeric(latest_fin.get('NP'), errors='coerce')  # 円単位
     eps = pd.to_numeric(latest_fin.get('EPS'), errors='coerce')  # 円単位
 
     if pd.isna(np) or pd.isna(eps) or eps <= 0:
@@ -613,8 +613,8 @@ def calculate_dcf_proxy(client, code: str, reference_date: Optional[datetime] = 
             'error': 'EPS/NPデータ欠損'
         }
 
-    # 発行済株式数 = 純利益（百万円→円） / EPS（円/株）
-    shares_outstanding = (np * 1_000_000) / eps
+    # 発行済株式数 = 純利益（円） / EPS（円/株）
+    shares_outstanding = np / eps
 
     # 理論企業価値（百万円単位）
     theoretical_ev = fcf / wacc
