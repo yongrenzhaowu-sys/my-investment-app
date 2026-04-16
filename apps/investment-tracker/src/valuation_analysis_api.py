@@ -489,7 +489,12 @@ def calculate_ev_ebitda(client, code: str, reference_date: Optional[datetime] = 
         'error': None,
         'market_cap': market_cap,  # 時価総額（百万円）
         'op_x10': op_x10,  # 営業利益×10（百万円）
-        'op_divergence': op_divergence  # 営業利益×10との乖離率（%）
+        'op_divergence': op_divergence,  # 営業利益×10との乖離率（%）
+        # デバッグ情報
+        'shares_outstanding': shares_outstanding,
+        'np': np,
+        'eps': eps,
+        'net_debt': net_debt
     }
 
 

@@ -1344,6 +1344,17 @@ def _render_analysis_result(result):
                 st.caption(f"   時総: {ev.get('market_cap', 0)/100:.0f}億 vs OP×10: {ev.get('op_x10', 0)/100:.0f}億")
             if ev.get('theoretical_price') is not None:
                 st.caption(f"理論株価: ¥{ev.get('theoretical_price', 0):.0f}")
+
+            # デバッグ情報
+            with st.expander("🔍 詳細"):
+                st.write(f"**時価総額**: {ev.get('market_cap', 0)/100:.0f}億円")
+                st.write(f"**営業利益（OP）**: {ev.get('ebitda', 0)/100:.0f}億円")
+                st.write(f"**純負債**: {ev.get('net_debt', 0)/100:.0f}億円")
+                st.write(f"**EV**: {ev.get('ev', 0)/100:.0f}億円")
+                st.write(f"**発行済株式数**: {ev.get('shares_outstanding', 0):,.0f}株")
+                st.write(f"**NP（百万円）**: {ev.get('np', 0):,.0f}")
+                st.write(f"**EPS（円）**: {ev.get('eps', 0):.2f}")
+
             st.markdown(_render_signal_badge(ev.get('signal')))
 
     with col4:
