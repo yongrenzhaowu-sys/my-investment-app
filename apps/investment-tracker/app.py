@@ -14,6 +14,8 @@ if 'src.profit_calculator' in sys.modules:
     importlib.reload(sys.modules['src.profit_calculator'])
 if 'src.trading_history' in sys.modules:
     importlib.reload(sys.modules['src.trading_history'])
+if 'src.asset_calculator' in sys.modules:
+    importlib.reload(sys.modules['src.asset_calculator'])
 
 from src.auth import JQuantsAuth
 from src.api import JQuantsClient
@@ -37,6 +39,11 @@ from src.metrics import (
     calculate_avg_holding_days,
     calculate_total_return
 )
+from src.asset_calculator import (
+    calculate_asset_change,
+    get_asset_history
+)
+import plotly.express as px
 
 # ページ設定（モバイル最適化）
 st.set_page_config(
@@ -187,7 +194,7 @@ def render_sidebar():
     st.sidebar.title("📱 メニュー")
     menu = st.sidebar.radio(
         "選択してください",
-        ["📋 仮説登録", "📊 損益サマリー", "📜 売買履歴", "📈 バリュエーション分析"],
+        ["📋 仮説登録", "📊 損益サマリー", "📜 売買履歴", "📈 バリュエーション分析", "💰 資産推移分析"],
         label_visibility="collapsed"
     )
 
@@ -198,6 +205,8 @@ def render_sidebar():
         st.session_state.current_view = "trading_history"
     elif menu == "📈 バリュエーション分析":
         st.session_state.current_view = "valuation_analysis"
+    elif menu == "💰 資産推移分析":
+        st.session_state.current_view = "asset_tracking"
     else:
         st.session_state.current_view = "main"
 
@@ -1372,6 +1381,201 @@ def _render_analysis_result(result):
             st.markdown(_render_signal_badge(dcf.get('signal')))
 
 
+def render_asset_tracking():
+    """資産推移分析を表示"""
+    st.title("💰 資産推移分析")
+    st.markdown("任意の基準日からの資産額の増減を分析します。")
+
+    # データ読み込み
+    hypotheses = load_hypotheses()
+    trading_history = load_trading_history()
+    initial_capital = st.session_state.get("initial_capital", 1_000_000)
+    additional_capital = st.session_state.get("additional_capital", 0)
+
+    # 基準日選択
+    st.subheader("📅 基準日を選択")
+    col1, col2 = st.columns([2, 1])
+
+    with col1:
+        base_date = st.date_input(
+            "基準日",
+            value=datetime(2026, 3, 13),
+            help="この日付からの資産増減を計算します"
+        )
+
+    with col2:
+        # 計算ボタン
+        calculate_button = st.button("🔍 計算開始", type="primary", use_container_width=True)
+
+    # 計算実行
+    if calculate_button or "asset_change_data" in st.session_state:
+        with st.spinner("資産額を計算中..."):
+            try:
+                # 資産増減計算
+                change = calculate_asset_change(
+                    start_date=base_date.strftime("%Y-%m-%d"),
+                    hypotheses=hypotheses,
+                    trading_history=trading_history,
+                    initial_capital=initial_capital,
+                    additional_capital=additional_capital
+                )
+
+                # セッション状態に保存
+                st.session_state.asset_change_data = change
+
+            except Exception as e:
+                st.error(f"計算エラー: {e}")
+                return
+
+    # 結果表示
+    if "asset_change_data" in st.session_state:
+        change = st.session_state.asset_change_data
+
+        st.markdown("---")
+        st.subheader("📊 資産増減サマリー")
+
+        # メトリクス表示
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.metric(
+                "基準日資産額",
+                f"¥{change['start_asset']:,.0f}",
+                help=f"基準日: {change['start_date']}"
+            )
+            st.caption(f"時価総額: ¥{change['start_market_value']:,.0f}")
+            st.caption(f"現金: ¥{change['start_cash']:,.0f}")
+
+        with col2:
+            st.metric(
+                "現在資産額",
+                f"¥{change['current_asset']:,.0f}",
+                help=f"現在日: {change['current_date']}"
+            )
+            st.caption(f"時価総額: ¥{change['current_market_value']:,.0f}")
+            st.caption(f"現金: ¥{change['current_cash']:,.0f}")
+
+        with col3:
+            # 増減額（色分け）
+            change_amount = change['change_amount']
+            change_rate = change['change_rate']
+
+            if change_amount >= 0:
+                st.success(f"**+¥{change_amount:,.0f}**")
+                st.success(f"**+{change_rate:.2f}%**")
+            else:
+                st.error(f"**¥{change_amount:,.0f}**")
+                st.error(f"**{change_rate:.2f}%**")
+
+        # 保有銘柄詳細（基準日）
+        st.markdown("---")
+        st.subheader(f"📋 基準日時点の保有銘柄（{change['start_date']}）")
+
+        if change['start_holdings']:
+            start_df = pd.DataFrame(change['start_holdings'])
+            start_df['価格'] = start_df['price'].apply(lambda x: f"¥{x:,.0f}")
+            start_df['株数'] = start_df['shares'].apply(lambda x: f"{x:,}株")
+            start_df['評価額'] = start_df['value'].apply(lambda x: f"¥{x:,.0f}")
+
+            st.dataframe(
+                start_df[['code', 'name', '価格', '株数', '評価額']],
+                use_container_width=True,
+                hide_index=True
+            )
+        else:
+            st.info("基準日時点では銘柄を保有していませんでした。")
+
+        # 保有銘柄詳細（現在）
+        st.markdown("---")
+        st.subheader(f"📋 現在の保有銘柄（{change['current_date']}）")
+
+        if change['current_holdings']:
+            current_df = pd.DataFrame(change['current_holdings'])
+            current_df['価格'] = current_df['price'].apply(lambda x: f"¥{x:,.0f}")
+            current_df['株数'] = current_df['shares'].apply(lambda x: f"{x:,}株")
+            current_df['評価額'] = current_df['value'].apply(lambda x: f"¥{x:,.0f}")
+
+            st.dataframe(
+                current_df[['code', 'name', '価格', '株数', '評価額']],
+                use_container_width=True,
+                hide_index=True
+            )
+        else:
+            st.info("現在は銘柄を保有していません。")
+
+        # 資産推移グラフ（Phase 2）
+        st.markdown("---")
+        st.subheader("📈 資産推移グラフ")
+
+        with st.spinner("グラフデータを取得中..."):
+            try:
+                history = get_asset_history(
+                    start_date=change['start_date'],
+                    end_date=change['current_date'],
+                    hypotheses=hypotheses,
+                    trading_history=trading_history,
+                    initial_capital=initial_capital,
+                    additional_capital=additional_capital
+                )
+
+                # Plotlyグラフ作成
+                fig = px.line(
+                    history,
+                    x="date",
+                    y="total_asset",
+                    title="資産推移",
+                    labels={"date": "日付", "total_asset": "総資産額（円）"}
+                )
+
+                # Y軸フォーマット（カンマ区切り）
+                fig.update_yaxes(tickformat=",")
+
+                # グラフ表示
+                st.plotly_chart(fig, use_container_width=True)
+
+                # データテーブル（展開可能）
+                with st.expander("📊 詳細データを表示"):
+                    history_display = history.copy()
+                    history_display['total_asset'] = history_display['total_asset'].apply(lambda x: f"¥{x:,.0f}")
+                    history_display['market_value'] = history_display['market_value'].apply(lambda x: f"¥{x:,.0f}")
+                    history_display['cash'] = history_display['cash'].apply(lambda x: f"¥{x:,.0f}")
+
+                    st.dataframe(
+                        history_display,
+                        use_container_width=True,
+                        hide_index=True
+                    )
+
+            except Exception as e:
+                st.error(f"グラフ作成エラー: {e}")
+
+    # 使い方ガイド
+    with st.expander("📖 使い方ガイド"):
+        st.markdown("""
+        ### 資産推移分析の使い方
+
+        #### 1. 基準日を選択
+        - カレンダーから任意の基準日を選択します
+        - デフォルトは 2026-03-13 です
+
+        #### 2. 計算開始
+        - 「🔍 計算開始」ボタンをクリックすると、以下が計算されます:
+          - **基準日時点の資産額**: 基準日の時価総額 + 現金残高
+          - **現在の資産額**: 現在の時価総額 + 現金残高
+          - **増減額**: 現在資産額 - 基準日資産額
+          - **増減率**: (現在資産額 / 基準日資産額 - 1) × 100%
+
+        #### 3. 資産推移グラフ
+        - 基準日から現在までの日次資産推移をグラフで表示
+        - 営業日のみデータが表示されます
+
+        ### 注意事項
+        - 株価データはyfinance APIから取得します
+        - 取得失敗した場合は0円として扱われます
+        - 基準日が休日の場合、直近の営業日の株価を使用します
+        """)
+
+
 def main():
     """メイン処理"""
     # 1. ログイン認証チェック
@@ -1417,6 +1621,9 @@ def main():
     # バリュエーション分析表示
     elif st.session_state.get("current_view") == "valuation_analysis":
         render_valuation_analysis()
+    # 資産推移分析表示
+    elif st.session_state.get("current_view") == "asset_tracking":
+        render_asset_tracking()
     # 仮説詳細表示
     elif "selected_hypothesis" in st.session_state and st.session_state.selected_hypothesis:
         render_hypothesis_detail(st.session_state.selected_hypothesis)
