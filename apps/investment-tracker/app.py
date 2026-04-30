@@ -51,12 +51,8 @@ from src.asset_calculator import (
     calculate_asset_change,
     get_asset_history
 )
-from src.sector_data import (
-    get_sector_master,
-    get_stocks_by_sector
-)
 from src.sector_returns import (
-    calculate_sector_returns,
+    calculate_sector_returns_from_indices,
     calculate_topix_return,
     calculate_relative_returns
 )
@@ -1593,9 +1589,9 @@ def render_asset_tracking():
 
 
 def render_sector_rotation():
-    """セクターローテーション分析を表示"""
+    """セクターローテーション分析を表示（TOPIX-17業種指数ベース）"""
     st.title("🔄 セクターローテーション分析")
-    st.markdown("TOPIX対比で各業種セクターの相対リターンを分析します。")
+    st.markdown("TOPIX-17業種指数を使用して、TOPIX対比で各業種セクターの相対リターンを分析します。")
 
     # APIクライアントチェック
     if not hasattr(st.session_state, 'client') or st.session_state.client is None:
@@ -1630,99 +1626,41 @@ def render_sector_rotation():
         else:  # 1年
             start_date = end_date - timedelta(days=365)
 
-    # 加重方法選択
-    col3, _ = st.columns([1, 3])
-    with col3:
-        method = st.selectbox(
-            "加重方法",
-            ["等加重", "時価総額加重"],
-            help="時価総額加重: より正確だが計算時間がかかる"
-        )
+    # 注意事項
+    st.info("💡 TOPIX-17業種指数を使用します（J-Quants APIから直接取得）")
 
     # 計算ボタン
     if st.button("🔍 分析開始", type="primary", use_container_width=True):
-        with st.spinner("セクター別リターンを計算中..."):
+        with st.spinner("TOPIX-17業種指数データを取得中..."):
             try:
-                # APIクライアントのテスト
-                st.info("ステップ 1/4: セクター情報を取得中...")
-
-                # まずAPIが動作するかテスト
-                with st.expander("🔍 API接続テスト", expanded=True):
-                    try:
-                        st.write("テスト: 単一銘柄の情報取得...")
-                        test_company = st.session_state.client.get_company_info("72030")
-                        if test_company:
-                            st.success(f"✅ API接続OK: {test_company.get('CompanyName') or test_company.get('CoName', 'N/A')}")
-                        else:
-                            st.error("❌ API接続失敗: get_company_info()が空を返しました")
-                    except Exception as e:
-                        st.error(f"❌ API接続エラー: {e}")
-
-                    try:
-                        st.write("テスト: 全銘柄情報取得...")
-                        test_companies = st.session_state.client.get_listed_companies()
-                        if test_companies:
-                            st.success(f"✅ 全銘柄取得OK: {len(test_companies)}銘柄")
-                            # サンプルデータを表示
-                            if len(test_companies) > 0:
-                                sample = test_companies[0]
-                                st.write("サンプルデータ（1件目）:")
-                                st.json({
-                                    "Code": sample.get("Code"),
-                                    "CompanyName": sample.get("CompanyName") or sample.get("CoName"),
-                                    "Sector33Code": sample.get("Sector33Code"),
-                                    "Sector17Code": sample.get("Sector17Code"),
-                                    "Keys": list(sample.keys())[:10]  # 最初の10個のキー
-                                })
-                        else:
-                            st.error("❌ 全銘柄取得失敗: get_listed_companies()が空を返しました")
-                            return
-                    except Exception as e:
-                        st.error(f"❌ 全銘柄取得エラー: {e}")
-                        import traceback
-                        st.code(traceback.format_exc())
-                        return
-
-                # セクターマスター取得
-                sector_master = get_sector_master(st.session_state.client)
-
-                if not sector_master:
-                    st.error("❌ セクター情報の取得に失敗しました")
-                    st.warning("上記のAPI接続テストの結果を確認してください")
-                    return
-
-                st.success(f"✅ {len(sector_master)}銘柄のセクター情報を取得しました")
-
-                # セクター別銘柄リスト
-                st.info("ステップ 2/4: セクター別銘柄を分類中...")
-                stocks_by_sector = get_stocks_by_sector(sector_master)
-                st.success(f"✅ {len(stocks_by_sector)}セクターに分類しました")
-
-                # セクターリターン計算
-                st.info(f"ステップ 3/4: セクター別リターンを計算中...（{len(stocks_by_sector)}セクター × 数百銘柄、時間がかかります）")
-                sector_returns = calculate_sector_returns(
+                # ステップ 1: TOPIX-17業種指数取得
+                st.info("ステップ 1/3: TOPIX-17業種指数を取得中...")
+                sector_returns = calculate_sector_returns_from_indices(
                     st.session_state.client,
-                    sector_master,
-                    stocks_by_sector,
                     start_date.strftime("%Y-%m-%d"),
-                    end_date.strftime("%Y-%m-%d"),
-                    method="equal_weight" if method == "等加重" else "market_cap_weight"
+                    end_date.strftime("%Y-%m-%d")
                 )
 
-                # TOPIXリターン計算
-                st.info("ステップ 4/4: TOPIXリターンを計算中...")
+                if not sector_returns:
+                    st.error("❌ TOPIX-17業種指数の取得に失敗しました")
+                    st.warning("J-Quants APIのプランを確認してください")
+                    return
+
+                st.success(f"✅ {len(sector_returns)}業種の指数データを取得しました")
+
+                # ステップ 2: TOPIXリターン計算
+                st.info("ステップ 2/3: TOPIXリターンを計算中...")
                 topix_return = calculate_topix_return(
                     st.session_state.client,
                     start_date.strftime("%Y-%m-%d"),
                     end_date.strftime("%Y-%m-%d")
                 )
 
-                # 相対リターン計算
-                st.info("ステップ 4/4: 相対リターンを計算中...")
+                # ステップ 3: 相対リターン計算
+                st.info("ステップ 3/3: 相対リターンを計算中...")
                 relative_returns = calculate_relative_returns(
                     sector_returns,
-                    topix_return,
-                    sector_master
+                    topix_return
                 )
 
                 # セッション状態に保存
@@ -1730,11 +1668,10 @@ def render_sector_rotation():
                     "relative_returns": relative_returns,
                     "topix_return": topix_return,
                     "start_date": start_date.strftime("%Y-%m-%d"),
-                    "end_date": end_date.strftime("%Y-%m-%d"),
-                    "method": method
+                    "end_date": end_date.strftime("%Y-%m-%d")
                 }
 
-                st.success("分析完了！")
+                st.success("✅ 分析完了！")
 
             except Exception as e:
                 st.error(f"❌ 分析エラー: {e}")
@@ -1780,7 +1717,7 @@ def render_sector_rotation():
             st.metric("TOPIX リターン", f"{data['topix_return']:.2f}%")
         with col_topix2:
             st.caption(f"期間: {data['start_date']} 〜 {data['end_date']}")
-            st.caption(f"加重方法: {data['method']}")
+            st.caption(f"データ: TOPIX-17業種指数")
 
         st.divider()
 
@@ -1863,28 +1800,43 @@ def render_sector_rotation():
         - **プリセット**: 1ヶ月、3ヶ月、6ヶ月、1年から選択
         - **カスタム**: 任意の開始日・終了日を指定
 
-        #### 2. 加重方法を選択
-        - **等加重**: セクター内の全銘柄の平均リターン（シンプル）
-        - **時価総額加重**: セクター内の時価総額加重平均リターン（より正確）
-
-        #### 3. 分析開始
+        #### 2. 分析開始
         - 「🔍 分析開始」ボタンをクリック
-        - J-Quants APIから株価データを取得し、計算を実行
+        - J-Quants APIからTOPIX-17業種指数データを取得し、計算を実行
 
-        #### 4. 結果の見方
+        #### 3. 結果の見方
         - **相対リターン**: TOPIX対比のリターン（プラス=TOPIXより強い、マイナス=TOPIXより弱い）
-        - **強いセクター Top 5**: TOPIXを上回ったセクター
-        - **弱いセクター Top 5**: TOPIXを下回ったセクター
+        - **強いセクター Top 5**: TOPIXを上回った業種
+        - **弱いセクター Top 5**: TOPIXを下回った業種
+
+        ### TOPIX-17業種分類
+        1. 食品
+        2. エネルギー資源
+        3. 建設・資材
+        4. 素材・化学
+        5. 医薬品
+        6. 自動車・輸送機
+        7. 鉄鋼・非鉄
+        8. 機械
+        9. 電機・精密
+        10. 情報通信・サービスその他
+        11. 電力・ガス
+        12. 運輸・物流
+        13. 商社・卸売
+        14. 小売
+        15. 銀行
+        16. 金融（除く銀行）
+        17. 不動産
 
         ### 活用方法
         - 📊 **セクターローテーション戦略**: 強いセクターに投資
         - 📊 **ポートフォリオバランス**: 保有銘柄のセクター偏りを確認
         - 📊 **マーケット分析**: 相場環境で優位なセクターを特定
 
-        ### 注意事項
-        - 株価データはJ-Quants APIから取得します
-        - 取得失敗した銘柄はスキップされます
-        - 計算には時間がかかる場合があります（特に時価総額加重）
+        ### データソース
+        - TOPIX-17業種指数（J-Quants API）
+        - 東京証券取引所の公式業種分類
+        - 高速で正確な分析が可能
         """)
 
 

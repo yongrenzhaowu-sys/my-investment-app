@@ -363,3 +363,51 @@ class JQuantsClient:
         except requests.exceptions.RequestException as e:
             print(f"TOPIXデータ取得エラー: {e}")
             return []
+
+    def get_topix_17_sectors(self, start_date: str, end_date: str) -> List[dict]:
+        """
+        TOPIX-17業種指数のデータを取得
+
+        Args:
+            start_date: 開始日（YYYY-MM-DD）
+            end_date: 終了日（YYYY-MM-DD）
+
+        Returns:
+            17業種指数データのリスト
+            [
+                {
+                    "Date": "2026-04-30",
+                    "SectorCode": "1",  // 業種コード（1-17）
+                    "Close": 1234.56,
+                    ...
+                },
+                ...
+            ]
+        """
+        url = f"{self.BASE_URL}/indices/topix_industry"
+
+        params = {
+            "start_dt": start_date.replace("-", ""),
+            "end_dt": end_date.replace("-", "")
+        }
+
+        try:
+            response = self.session.get(url, params=params, timeout=30)
+            response.raise_for_status()
+
+            data = response.json()
+
+            # レスポンスキーの候補
+            if "industry" in data and data["industry"]:
+                return data["industry"]
+            elif "data" in data and data["data"]:
+                return data["data"]
+            elif "topix_industry" in data and data["topix_industry"]:
+                return data["topix_industry"]
+            else:
+                print(f"WARNING: Unexpected response format: {data.keys() if isinstance(data, dict) else 'Not a dict'}")
+                return []
+
+        except requests.exceptions.RequestException as e:
+            print(f"TOPIX-17業種指数データ取得エラー: {e}")
+            return []
