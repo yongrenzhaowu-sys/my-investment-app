@@ -414,21 +414,63 @@ class JQuantsClient:
         except Exception as e:
             print(f"DEBUG: Bulk fetch failed: {e}")
 
-        # 方法2: 業種コードごとに取得
-        print(f"DEBUG: Falling back to per-sector fetch")
+        # 方法2: 業種コードごとに取得（33業種分類）
+        print(f"DEBUG: Falling back to per-sector fetch (33 sectors)")
         all_data = []
 
-        # 複数のコード形式を試す
-        code_patterns = [
-            [str(i) for i in range(1, 18)],  # "1", "2", ..., "17"
-            [f"{i:02d}" for i in range(1, 18)],  # "01", "02", ..., "17"
-            [f"{i:04d}" for i in range(50, 180, 10)],  # "0050", "0060", ..., "0170"
+        # 33業種分類コード
+        sector_codes_33 = [
+            "0050", "1050", "2050", "3050", "3100", "3150", "3200", "3250",
+            "3300", "3350", "3400", "3450", "3500", "3550", "3600", "3650",
+            "3700", "3750", "3800", "4050", "5050", "5100", "5150", "5200",
+            "5250", "6050", "6100", "7050", "7100", "7150", "7200", "8050",
+            "9050", "9999"
         ]
 
-        for pattern_name, codes in zip(["1-17", "01-17", "0050-0170"], code_patterns):
-            print(f"DEBUG: Trying code pattern: {pattern_name}")
+        print(f"DEBUG: Trying 33-sector codes")
 
-            for code in codes[:2]:  # 最初の2つだけテスト
+        # 最初の2つのコードでテスト
+        test_codes = sector_codes_33[:2]
+        success = False
+
+        for code in test_codes:
+            params = {
+                "code": code,
+                "start_dt": start_date.replace("-", ""),
+                "end_dt": end_date.replace("-", "")
+            }
+
+            try:
+                response = self.session.get(url, params=params, timeout=30)
+                print(f"DEBUG: Code {code} - Status: {response.status_code}")
+
+                if response.status_code == 200:
+                    data = response.json()
+
+                    sector_data = None
+                    if "industry" in data and data["industry"]:
+                        sector_data = data["industry"]
+                    elif "data" in data and data["data"]:
+                        sector_data = data["data"]
+                    elif "topix_industry" in data and data["topix_industry"]:
+                        sector_data = data["topix_industry"]
+
+                    if sector_data:
+                        print(f"DEBUG: Success with code {code}: {len(sector_data)} records")
+                        success = True
+                        break
+                    else:
+                        print(f"DEBUG: Code {code}: No data in response")
+                        print(f"DEBUG: Response keys: {list(data.keys())}")
+
+            except Exception as e:
+                print(f"DEBUG: Error with code {code}: {e}")
+                continue
+
+        # 成功した場合、全コードでデータ取得
+        if success:
+            print(f"DEBUG: Fetching all 33 sectors...")
+            for code in sector_codes_33:
                 params = {
                     "code": code,
                     "start_dt": start_date.replace("-", ""),
@@ -439,32 +481,16 @@ class JQuantsClient:
                     response = self.session.get(url, params=params, timeout=30)
                     if response.status_code == 200:
                         data = response.json()
-
-                        sector_data = None
-                        if "industry" in data and data["industry"]:
-                            sector_data = data["industry"]
-                        elif "data" in data and data["data"]:
-                            sector_data = data["data"]
-                        elif "topix_industry" in data and data["topix_industry"]:
-                            sector_data = data["topix_industry"]
-
-                        if sector_data:
-                            print(f"DEBUG: Success with pattern {pattern_name}, code {code}: {len(sector_data)} records")
-                            # このパターンで全データを取得
-                            all_data = []
-                            for full_code in codes:
-                                params["code"] = full_code
-                                resp = self.session.get(url, params=params, timeout=30)
-                                if resp.status_code == 200:
-                                    d = resp.json()
-                                    sd = d.get("industry") or d.get("data") or d.get("topix_industry")
-                                    if sd:
-                                        all_data.extend(sd)
-                            return all_data
-
+                        sd = data.get("industry") or data.get("data") or data.get("topix_industry")
+                        if sd:
+                            all_data.extend(sd)
+                            print(f"DEBUG: Sector {code}: {len(sd)} records")
                 except Exception as e:
-                    print(f"DEBUG: Error with code {code}: {e}")
-                    continue
+                    print(f"WARNING: Failed to fetch sector {code}: {e}")
+
+            if all_data:
+                print(f"DEBUG: Total {len(all_data)} records from {len(sector_codes_33)} sectors")
+                return all_data
 
         print("ERROR: All fetch methods failed")
         return []
