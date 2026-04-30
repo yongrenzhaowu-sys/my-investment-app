@@ -1392,19 +1392,32 @@ def render_asset_tracking():
     initial_capital = st.session_state.get("initial_capital", 1_000_000)
     additional_capital = st.session_state.get("additional_capital", 0)
 
-    # 基準日選択
-    st.subheader("📅 基準日を選択")
-    col1, col2 = st.columns([2, 1])
+    # 期間選択
+    st.subheader("📅 期間を選択")
+    col1, col2 = st.columns(2)
 
     with col1:
-        base_date = st.date_input(
-            "基準日",
+        start_date = st.date_input(
+            "開始日",
             value=datetime(2026, 3, 13),
-            help="この日付からの資産増減を計算します"
+            help="分析開始日を選択します"
         )
 
     with col2:
-        # 計算ボタン
+        end_date = st.date_input(
+            "終了日",
+            value=datetime.now(),
+            help="分析終了日を選択します"
+        )
+
+    # バリデーション
+    if start_date >= end_date:
+        st.error("⚠️ 開始日は終了日より前である必要があります")
+        return
+
+    # 計算ボタン
+    col3, _ = st.columns([1, 3])
+    with col3:
         calculate_button = st.button("🔍 計算開始", type="primary", use_container_width=True)
 
     # 計算実行
@@ -1413,11 +1426,12 @@ def render_asset_tracking():
             try:
                 # 資産増減計算
                 change = calculate_asset_change(
-                    start_date=base_date.strftime("%Y-%m-%d"),
+                    start_date=start_date.strftime("%Y-%m-%d"),
                     hypotheses=hypotheses,
                     trading_history=trading_history,
                     initial_capital=initial_capital,
-                    additional_capital=additional_capital
+                    additional_capital=additional_capital,
+                    end_date=end_date.strftime("%Y-%m-%d")
                 )
 
                 # セッション状態に保存
@@ -1439,21 +1453,21 @@ def render_asset_tracking():
 
         with col1:
             st.metric(
-                "基準日資産額",
+                "開始日資産額",
                 f"¥{change['start_asset']:,.0f}",
-                help=f"基準日: {change['start_date']}"
+                help=f"開始日: {change['start_date']}"
             )
             st.caption(f"時価総額: ¥{change['start_market_value']:,.0f}")
             st.caption(f"現金: ¥{change['start_cash']:,.0f}")
 
         with col2:
             st.metric(
-                "現在資産額",
-                f"¥{change['current_asset']:,.0f}",
-                help=f"現在日: {change['current_date']}"
+                "終了日資産額",
+                f"¥{change['end_asset']:,.0f}",
+                help=f"終了日: {change['end_date']}"
             )
-            st.caption(f"時価総額: ¥{change['current_market_value']:,.0f}")
-            st.caption(f"現金: ¥{change['current_cash']:,.0f}")
+            st.caption(f"時価総額: ¥{change['end_market_value']:,.0f}")
+            st.caption(f"現金: ¥{change['end_cash']:,.0f}")
 
         with col3:
             # 増減額（色分け）
@@ -1467,9 +1481,9 @@ def render_asset_tracking():
                 st.error(f"**¥{change_amount:,.0f}**")
                 st.error(f"**{change_rate:.2f}%**")
 
-        # 保有銘柄詳細（基準日）
+        # 保有銘柄詳細（開始日）
         st.markdown("---")
-        st.subheader(f"📋 基準日時点の保有銘柄（{change['start_date']}）")
+        st.subheader(f"📋 開始日時点の保有銘柄（{change['start_date']}）")
 
         if change['start_holdings']:
             start_df = pd.DataFrame(change['start_holdings'])
@@ -1483,14 +1497,14 @@ def render_asset_tracking():
                 hide_index=True
             )
         else:
-            st.info("基準日時点では銘柄を保有していませんでした。")
+            st.info("開始日時点では銘柄を保有していませんでした。")
 
-        # 保有銘柄詳細（現在）
+        # 保有銘柄詳細（終了日）
         st.markdown("---")
-        st.subheader(f"📋 現在の保有銘柄（{change['current_date']}）")
+        st.subheader(f"📋 終了日時点の保有銘柄（{change['end_date']}）")
 
-        if change['current_holdings']:
-            current_df = pd.DataFrame(change['current_holdings'])
+        if change['end_holdings']:
+            current_df = pd.DataFrame(change['end_holdings'])
             current_df['価格'] = current_df['price'].apply(lambda x: f"¥{x:,.0f}")
             current_df['株数'] = current_df['shares'].apply(lambda x: f"{x:,}株")
             current_df['評価額'] = current_df['value'].apply(lambda x: f"¥{x:,.0f}")
@@ -1501,7 +1515,7 @@ def render_asset_tracking():
                 hide_index=True
             )
         else:
-            st.info("現在は銘柄を保有していません。")
+            st.info("終了日時点では銘柄を保有していません。")
 
         # 資産推移グラフ（Phase 2）
         st.markdown("---")
@@ -1511,7 +1525,7 @@ def render_asset_tracking():
             try:
                 history = get_asset_history(
                     start_date=change['start_date'],
-                    end_date=change['current_date'],
+                    end_date=change['end_date'],
                     hypotheses=hypotheses,
                     trading_history=trading_history,
                     initial_capital=initial_capital,
@@ -1554,25 +1568,32 @@ def render_asset_tracking():
         st.markdown("""
         ### 資産推移分析の使い方
 
-        #### 1. 基準日を選択
-        - カレンダーから任意の基準日を選択します
-        - デフォルトは 2026-03-13 です
+        #### 1. 期間を選択
+        - **開始日**: 分析開始日を選択（デフォルト: 2026-03-13）
+        - **終了日**: 分析終了日を選択（デフォルト: 今日）
+        - ⚠️ 開始日 < 終了日 である必要があります
 
         #### 2. 計算開始
         - 「🔍 計算開始」ボタンをクリックすると、以下が計算されます:
-          - **基準日時点の資産額**: 基準日の時価総額 + 現金残高
-          - **現在の資産額**: 現在の時価総額 + 現金残高
-          - **増減額**: 現在資産額 - 基準日資産額
-          - **増減率**: (現在資産額 / 基準日資産額 - 1) × 100%
+          - **開始日時点の資産額**: 開始日の時価総額 + 現金残高
+          - **終了日時点の資産額**: 終了日の時価総額 + 現金残高
+          - **増減額**: 終了日資産額 - 開始日資産額
+          - **増減率**: (終了日資産額 / 開始日資産額 - 1) × 100%
 
         #### 3. 資産推移グラフ
-        - 基準日から現在までの日次資産推移をグラフで表示
+        - 開始日から終了日までの日次資産推移をグラフで表示
         - 営業日のみデータが表示されます
+
+        ### ユースケース
+        - 📊 **過去1ヶ月のリターン**: 開始日=1ヶ月前、終了日=今日
+        - 📊 **特定月のパフォーマンス**: 開始日=2026-03-01、終了日=2026-03-31
+        - 📊 **運用開始からのリターン**: 開始日=運用開始日、終了日=今日
+        - 📊 **四半期ごとの比較**: 開始日=Q1開始、終了日=Q1終了
 
         ### 注意事項
         - 株価データはyfinance APIから取得します
         - 取得失敗した場合は0円として扱われます
-        - 基準日が休日の場合、直近の営業日の株価を使用します
+        - 開始日・終了日が休日の場合、直近の営業日の株価を使用します
         """)
 
 

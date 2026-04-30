@@ -202,44 +202,48 @@ def calculate_asset_change(
     hypotheses: List[Dict],
     trading_history: List[Dict],
     initial_capital: float,
-    additional_capital: float = 0
+    additional_capital: float = 0,
+    end_date: str = None
 ) -> Dict[str, float]:
     """
-    基準日から現在までの資産増減を計算
+    指定期間の資産増減を計算
 
     Args:
-        start_date: 基準日（YYYY-MM-DD）
+        start_date: 開始日（YYYY-MM-DD）
         hypotheses: 現在保有中の銘柄リスト
         trading_history: 売買履歴
         initial_capital: 初期資金
         additional_capital: 追加投資額
+        end_date: 終了日（YYYY-MM-DD）。Noneの場合は現在日
 
     Returns:
         {
-            "start_date": 基準日,
-            "start_asset": 基準日資産額,
-            "start_market_value": 基準日時価総額,
-            "start_cash": 基準日現金,
-            "current_date": 現在日,
-            "current_asset": 現在資産額,
-            "current_market_value": 現在時価総額,
-            "current_cash": 現在現金,
+            "start_date": 開始日,
+            "start_asset": 開始日資産額,
+            "start_market_value": 開始日時価総額,
+            "start_cash": 開始日現金,
+            "end_date": 終了日,
+            "end_asset": 終了日資産額,
+            "end_market_value": 終了日時価総額,
+            "end_cash": 終了日現金,
             "change_amount": 増減額,
             "change_rate": 増減率（%）
         }
     """
-    # 基準日の資産額
+    # 開始日の資産額
     start_value = calculate_asset_value_at_date(
         start_date, hypotheses, trading_history, initial_capital, additional_capital
     )
 
-    # 現在の資産額
-    current_date = datetime.now().strftime("%Y-%m-%d")
-    current_value = calculate_asset_value_at_date(
-        current_date, hypotheses, trading_history, initial_capital, additional_capital
+    # 終了日の資産額（end_dateが指定されていない場合は現在日）
+    if end_date is None:
+        end_date = datetime.now().strftime("%Y-%m-%d")
+
+    end_value = calculate_asset_value_at_date(
+        end_date, hypotheses, trading_history, initial_capital, additional_capital
     )
 
-    change_amount = current_value["total_asset"] - start_value["total_asset"]
+    change_amount = end_value["total_asset"] - start_value["total_asset"]
     change_rate = (change_amount / start_value["total_asset"] * 100) if start_value["total_asset"] > 0 else 0
 
     return {
@@ -248,11 +252,11 @@ def calculate_asset_change(
         "start_market_value": start_value["market_value"],
         "start_cash": start_value["cash"],
         "start_holdings": start_value["holdings"],
-        "current_date": current_date,
-        "current_asset": current_value["total_asset"],
-        "current_market_value": current_value["market_value"],
-        "current_cash": current_value["cash"],
-        "current_holdings": current_value["holdings"],
+        "end_date": end_date,
+        "end_asset": end_value["total_asset"],
+        "end_market_value": end_value["market_value"],
+        "end_cash": end_value["cash"],
+        "end_holdings": end_value["holdings"],
         "change_amount": change_amount,
         "change_rate": change_rate
     }
