@@ -1708,9 +1708,35 @@ def render_sector_rotation():
                 st.success("分析完了！")
 
             except Exception as e:
-                st.error(f"分析エラー: {e}")
+                st.error(f"❌ 分析エラー: {e}")
+
+                # 詳細なエラー情報を表示
                 import traceback
-                st.code(traceback.format_exc())
+                with st.expander("🔍 詳細なエラー情報（デバッグ用）"):
+                    st.code(traceback.format_exc())
+
+                # トラブルシューティング
+                st.warning("### トラブルシューティング")
+                st.write("**考えられる原因:**")
+                st.write("1. J-Quants APIの認証エラー")
+                st.write("2. APIのレート制限")
+                st.write("3. ネットワークエラー")
+
+                st.write("**確認事項:**")
+                st.write("- Secrets設定でJ-Quants APIキーが正しく設定されているか")
+                st.write("- リフレッシュトークンが有効期限内か")
+
+                # APIテスト
+                st.write("### API接続テスト")
+                try:
+                    test_result = st.session_state.client.get_company_info("72030")
+                    if test_result:
+                        st.success("✅ API接続は正常です")
+                        st.write(f"テスト結果: {test_result.get('CompanyName', 'N/A')}")
+                    else:
+                        st.error("❌ API接続に失敗しました")
+                except Exception as api_error:
+                    st.error(f"❌ API接続エラー: {api_error}")
 
     # 結果表示
     if "sector_rotation_data" in st.session_state:

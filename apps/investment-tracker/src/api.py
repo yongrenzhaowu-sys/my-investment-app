@@ -300,10 +300,12 @@ class JQuantsClient:
                 return []
 
         except requests.exceptions.RequestException as e:
-            print(f"ERROR: 全銘柄情報取得エラー: {e}")
+            error_msg = f"全銘柄情報取得エラー: {e}"
+            print(f"ERROR: {error_msg}")
             import traceback
             traceback.print_exc()
-            return []
+            # 例外を再度投げて、呼び出し元で処理できるようにする
+            raise Exception(f"{error_msg} (URL: {url})")
 
     def get_price_range(self, code: str, start_date: str, end_date: str) -> List[dict]:
         """

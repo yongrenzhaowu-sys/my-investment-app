@@ -82,10 +82,8 @@ def get_sector_master(client) -> Dict[str, Dict]:
         companies = client.get_listed_companies()
 
         if not companies:
-            print("WARNING: get_listed_companies() returned empty list")
-            return {}
-
-        print(f"DEBUG: 取得した銘柄数: {len(companies)}")
+            # Streamlit用のエラー情報を返す
+            raise ValueError("get_listed_companies() returned empty list")
 
         sector_master = {}
 
