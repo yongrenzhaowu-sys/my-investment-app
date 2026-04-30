@@ -414,83 +414,79 @@ class JQuantsClient:
         except Exception as e:
             print(f"DEBUG: Bulk fetch failed: {e}")
 
-        # 方法2: 業種コードごとに取得（33業種分類）
-        print(f"DEBUG: Falling back to per-sector fetch (33 sectors)")
-        all_data = []
+        # 方法2: dateパラメータで日付指定（パラメータなしも試す）
+        print(f"DEBUG: Trying with date parameter")
 
-        # 33業種分類コード
-        sector_codes_33 = [
-            "0050", "1050", "2050", "3050", "3100", "3150", "3200", "3250",
-            "3300", "3350", "3400", "3450", "3500", "3550", "3600", "3650",
-            "3700", "3750", "3800", "4050", "5050", "5100", "5150", "5200",
-            "5250", "6050", "6100", "7050", "7100", "7150", "7200", "8050",
-            "9050", "9999"
-        ]
+        # 終了日のデータで試す
+        params_date = {
+            "date": end_date.replace("-", "")
+        }
 
-        print(f"DEBUG: Trying 33-sector codes")
+        try:
+            response = self.session.get(url, params=params_date, timeout=30)
+            print(f"DEBUG: With date parameter - Status: {response.status_code}")
 
-        # 最初の2つのコードでテスト
-        test_codes = sector_codes_33[:2]
-        success = False
+            if response.status_code == 200:
+                data = response.json()
+                print(f"DEBUG: Response keys: {list(data.keys())}")
 
-        for code in test_codes:
-            params = {
-                "code": code,
-                "start_dt": start_date.replace("-", ""),
-                "end_dt": end_date.replace("-", "")
-            }
+                sector_data = None
+                if "industry" in data and data["industry"]:
+                    sector_data = data["industry"]
+                elif "data" in data and data["data"]:
+                    sector_data = data["data"]
+                elif "topix_industry" in data and data["topix_industry"]:
+                    sector_data = data["topix_industry"]
 
-            try:
-                response = self.session.get(url, params=params, timeout=30)
-                print(f"DEBUG: Code {code} - Status: {response.status_code}")
+                if sector_data:
+                    print(f"DEBUG: Success with date parameter: {len(sector_data)} records")
+                    # 開始日のデータも取得
+                    params_start = {"date": start_date.replace("-", "")}
+                    resp_start = self.session.get(url, params=params_start, timeout=30)
 
-                if response.status_code == 200:
-                    data = response.json()
+                    if resp_start.status_code == 200:
+                        data_start = resp_start.json()
+                        sd_start = data_start.get("industry") or data_start.get("data") or data_start.get("topix_industry")
 
-                    sector_data = None
-                    if "industry" in data and data["industry"]:
-                        sector_data = data["industry"]
-                    elif "data" in data and data["data"]:
-                        sector_data = data["data"]
-                    elif "topix_industry" in data and data["topix_industry"]:
-                        sector_data = data["topix_industry"]
+                        if sd_start:
+                            # 開始日と終了日のデータを返す
+                            all_data = sd_start + sector_data
+                            print(f"DEBUG: Total {len(all_data)} records (start + end)")
+                            return all_data
 
-                    if sector_data:
-                        print(f"DEBUG: Success with code {code}: {len(sector_data)} records")
-                        success = True
-                        break
-                    else:
-                        print(f"DEBUG: Code {code}: No data in response")
-                        print(f"DEBUG: Response keys: {list(data.keys())}")
+                    # 開始日の取得に失敗しても、終了日のデータは返す
+                    return sector_data
+                else:
+                    print(f"DEBUG: No sector data in response")
+                    print(f"DEBUG: Response sample: {str(data)[:200]}")
 
-            except Exception as e:
-                print(f"DEBUG: Error with code {code}: {e}")
-                continue
+        except Exception as e:
+            print(f"DEBUG: Error with date parameter: {e}")
 
-        # 成功した場合、全コードでデータ取得
-        if success:
-            print(f"DEBUG: Fetching all 33 sectors...")
-            for code in sector_codes_33:
-                params = {
-                    "code": code,
-                    "start_dt": start_date.replace("-", ""),
-                    "end_dt": end_date.replace("-", "")
-                }
+        # 方法3: パラメータなしで試す
+        print(f"DEBUG: Trying without parameters")
+        try:
+            response = self.session.get(url, timeout=30)
+            print(f"DEBUG: No parameters - Status: {response.status_code}")
 
-                try:
-                    response = self.session.get(url, params=params, timeout=30)
-                    if response.status_code == 200:
-                        data = response.json()
-                        sd = data.get("industry") or data.get("data") or data.get("topix_industry")
-                        if sd:
-                            all_data.extend(sd)
-                            print(f"DEBUG: Sector {code}: {len(sd)} records")
-                except Exception as e:
-                    print(f"WARNING: Failed to fetch sector {code}: {e}")
+            if response.status_code == 200:
+                data = response.json()
+                print(f"DEBUG: Response keys: {list(data.keys())}")
 
-            if all_data:
-                print(f"DEBUG: Total {len(all_data)} records from {len(sector_codes_33)} sectors")
-                return all_data
+                sector_data = None
+                if "industry" in data and data["industry"]:
+                    sector_data = data["industry"]
+                elif "data" in data and data["data"]:
+                    sector_data = data["data"]
+                elif "topix_industry" in data and data["topix_industry"]:
+                    sector_data = data["topix_industry"]
+
+                if sector_data:
+                    print(f"DEBUG: Success without parameters: {len(sector_data)} records")
+                    return sector_data
+
+        except Exception as e:
+            print(f"DEBUG: Error without parameters: {e}")
 
         print("ERROR: All fetch methods failed")
         return []
