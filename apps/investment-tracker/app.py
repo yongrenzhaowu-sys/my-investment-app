@@ -4,7 +4,7 @@ import pandas as pd
 import json
 import os
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
 
 # 開発時のモジュール強制リロード（修正を即座に反映）
@@ -50,6 +50,15 @@ from src.metrics import (
 from src.asset_calculator import (
     calculate_asset_change,
     get_asset_history
+)
+from src.sector_data import (
+    get_sector_master,
+    get_stocks_by_sector
+)
+from src.sector_returns import (
+    calculate_sector_returns,
+    calculate_topix_return,
+    calculate_relative_returns
 )
 import plotly.express as px
 
@@ -202,7 +211,7 @@ def render_sidebar():
     st.sidebar.title("📱 メニュー")
     menu = st.sidebar.radio(
         "選択してください",
-        ["📋 仮説登録", "📊 損益サマリー", "📜 売買履歴", "📈 バリュエーション分析", "💰 資産推移分析"],
+        ["📋 仮説登録", "📊 損益サマリー", "📜 売買履歴", "📈 バリュエーション分析", "💰 資産推移分析", "🔄 セクターローテーション"],
         label_visibility="collapsed"
     )
 
@@ -215,6 +224,8 @@ def render_sidebar():
         st.session_state.current_view = "valuation_analysis"
     elif menu == "💰 資産推移分析":
         st.session_state.current_view = "asset_tracking"
+    elif menu == "🔄 セクターローテーション":
+        st.session_state.current_view = "sector_rotation"
     else:
         st.session_state.current_view = "main"
 
@@ -1581,6 +1592,228 @@ def render_asset_tracking():
         """)
 
 
+def render_sector_rotation():
+    """セクターローテーション分析を表示"""
+    st.title("🔄 セクターローテーション分析")
+    st.markdown("TOPIX対比で各業種セクターの相対リターンを分析します。")
+
+    # APIクライアントチェック
+    if not hasattr(st.session_state, 'client') or st.session_state.client is None:
+        st.error("J-Quants APIクライアントが初期化されていません。")
+        return
+
+    # 期間選択
+    st.subheader("📅 期間を選択")
+    col1, col2 = st.columns([1, 3])
+
+    with col1:
+        preset = st.selectbox(
+            "プリセット",
+            ["1ヶ月", "3ヶ月", "6ヶ月", "1年", "カスタム"]
+        )
+
+    if preset == "カスタム":
+        col2_1, col2_2 = st.columns(2)
+        with col2_1:
+            start_date = st.date_input("開始日", value=datetime.now() - timedelta(days=30))
+        with col2_2:
+            end_date = st.date_input("終了日", value=datetime.now())
+    else:
+        # プリセットから期間を計算
+        end_date = datetime.now()
+        if preset == "1ヶ月":
+            start_date = end_date - timedelta(days=30)
+        elif preset == "3ヶ月":
+            start_date = end_date - timedelta(days=90)
+        elif preset == "6ヶ月":
+            start_date = end_date - timedelta(days=180)
+        else:  # 1年
+            start_date = end_date - timedelta(days=365)
+
+    # 加重方法選択
+    col3, _ = st.columns([1, 3])
+    with col3:
+        method = st.selectbox(
+            "加重方法",
+            ["等加重", "時価総額加重"],
+            help="時価総額加重: より正確だが計算時間がかかる"
+        )
+
+    # 計算ボタン
+    if st.button("🔍 分析開始", type="primary", use_container_width=True):
+        with st.spinner("セクター別リターンを計算中..."):
+            try:
+                # セクターマスター取得（キャッシュ）
+                sector_master = get_sector_master(st.session_state.client)
+
+                if not sector_master:
+                    st.error("セクター情報の取得に失敗しました")
+                    return
+
+                # セクター別銘柄リスト
+                stocks_by_sector = get_stocks_by_sector(sector_master)
+
+                # セクターリターン計算
+                sector_returns = calculate_sector_returns(
+                    st.session_state.client,
+                    sector_master,
+                    stocks_by_sector,
+                    start_date.strftime("%Y-%m-%d"),
+                    end_date.strftime("%Y-%m-%d"),
+                    method="equal_weight" if method == "等加重" else "market_cap_weight"
+                )
+
+                # TOPIXリターン計算
+                topix_return = calculate_topix_return(
+                    st.session_state.client,
+                    start_date.strftime("%Y-%m-%d"),
+                    end_date.strftime("%Y-%m-%d")
+                )
+
+                # 相対リターン計算
+                relative_returns = calculate_relative_returns(
+                    sector_returns,
+                    topix_return,
+                    sector_master
+                )
+
+                # セッション状態に保存
+                st.session_state.sector_rotation_data = {
+                    "relative_returns": relative_returns,
+                    "topix_return": topix_return,
+                    "start_date": start_date.strftime("%Y-%m-%d"),
+                    "end_date": end_date.strftime("%Y-%m-%d"),
+                    "method": method
+                }
+
+                st.success("分析完了！")
+
+            except Exception as e:
+                st.error(f"分析エラー: {e}")
+                import traceback
+                st.code(traceback.format_exc())
+
+    # 結果表示
+    if "sector_rotation_data" in st.session_state:
+        data = st.session_state.sector_rotation_data
+
+        st.markdown("---")
+        st.subheader("📊 分析結果")
+
+        # TOPIXリターン表示
+        col_topix1, col_topix2 = st.columns(2)
+        with col_topix1:
+            st.metric("TOPIX リターン", f"{data['topix_return']:.2f}%")
+        with col_topix2:
+            st.caption(f"期間: {data['start_date']} 〜 {data['end_date']}")
+            st.caption(f"加重方法: {data['method']}")
+
+        st.divider()
+
+        # セクター別リターン（バーチャート）
+        st.subheader("📈 セクター別相対リターン（TOPIX対比）")
+
+        # データフレーム作成
+        df = pd.DataFrame([
+            {
+                "セクター": sector_data["sector_name"],
+                "絶対リターン (%)": sector_data["absolute_return"],
+                "相対リターン (%)": sector_data["relative_return"]
+            }
+            for sector_code, sector_data in data["relative_returns"].items()
+        ])
+
+        # 相対リターンでソート（降順）
+        df = df.sort_values("相対リターン (%)", ascending=False)
+
+        # バーチャート（Plotly）
+        fig = px.bar(
+            df,
+            x="相対リターン (%)",
+            y="セクター",
+            orientation="h",
+            color="相対リターン (%)",
+            color_continuous_scale="RdYlGn",
+            title="TOPIX対比の相対リターン"
+        )
+
+        fig.update_layout(
+            yaxis={'categoryorder': 'total ascending'},
+            height=800
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.divider()
+
+        # トップ5 / ボトム5
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.subheader("🟢 強いセクター Top 5")
+            top5 = df.head(5)
+            for i, row in top5.iterrows():
+                st.metric(
+                    row["セクター"],
+                    f"{row['絶対リターン (%)']:.2f}%",
+                    delta=f"{row['相対リターン (%)']:+.2f}% vs TOPIX"
+                )
+
+        with col2:
+            st.subheader("🔴 弱いセクター Top 5")
+            bottom5 = df.tail(5).iloc[::-1]
+            for i, row in bottom5.iterrows():
+                st.metric(
+                    row["セクター"],
+                    f"{row['絶対リターン (%)']:.2f}%",
+                    delta=f"{row['相対リターン (%)']:+.2f}% vs TOPIX",
+                    delta_color="inverse"
+                )
+
+        st.divider()
+
+        # 詳細データテーブル
+        with st.expander("📋 全セクター詳細データ"):
+            st.dataframe(
+                df,
+                use_container_width=True,
+                hide_index=True
+            )
+
+    # 使い方ガイド
+    with st.expander("📖 使い方ガイド"):
+        st.markdown("""
+        ### セクターローテーション分析の使い方
+
+        #### 1. 期間を選択
+        - **プリセット**: 1ヶ月、3ヶ月、6ヶ月、1年から選択
+        - **カスタム**: 任意の開始日・終了日を指定
+
+        #### 2. 加重方法を選択
+        - **等加重**: セクター内の全銘柄の平均リターン（シンプル）
+        - **時価総額加重**: セクター内の時価総額加重平均リターン（より正確）
+
+        #### 3. 分析開始
+        - 「🔍 分析開始」ボタンをクリック
+        - J-Quants APIから株価データを取得し、計算を実行
+
+        #### 4. 結果の見方
+        - **相対リターン**: TOPIX対比のリターン（プラス=TOPIXより強い、マイナス=TOPIXより弱い）
+        - **強いセクター Top 5**: TOPIXを上回ったセクター
+        - **弱いセクター Top 5**: TOPIXを下回ったセクター
+
+        ### 活用方法
+        - 📊 **セクターローテーション戦略**: 強いセクターに投資
+        - 📊 **ポートフォリオバランス**: 保有銘柄のセクター偏りを確認
+        - 📊 **マーケット分析**: 相場環境で優位なセクターを特定
+
+        ### 注意事項
+        - 株価データはJ-Quants APIから取得します
+        - 取得失敗した銘柄はスキップされます
+        - 計算には時間がかかる場合があります（特に時価総額加重）
+        """)
+
+
 def main():
     """メイン処理"""
     # 1. ログイン認証チェック
@@ -1629,6 +1862,9 @@ def main():
     # 資産推移分析表示
     elif st.session_state.get("current_view") == "asset_tracking":
         render_asset_tracking()
+    # セクターローテーション分析表示
+    elif st.session_state.get("current_view") == "sector_rotation":
+        render_sector_rotation()
     # 仮説詳細表示
     elif "selected_hypothesis" in st.session_state and st.session_state.selected_hypothesis:
         render_hypothesis_detail(st.session_state.selected_hypothesis)
