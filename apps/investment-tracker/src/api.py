@@ -258,26 +258,39 @@ class JQuantsClient:
         url = f"{self.BASE_URL}/equities/master"
 
         try:
+            print(f"DEBUG: Fetching listed companies from {url}")
             response = self.session.get(url, timeout=60)
+
+            print(f"DEBUG: Response status code: {response.status_code}")
+
             response.raise_for_status()
 
             data = response.json()
 
+            print(f"DEBUG: Response keys: {data.keys() if isinstance(data, dict) else 'Not a dict'}")
+
             if "data" in data and data["data"]:
                 companies = data["data"]
+                print(f"DEBUG: Found {len(companies)} companies")
 
-                # Sector33Codeがない場合は、17SectorCodeを使用
+                # 最初の1件をサンプル表示
+                if companies:
+                    print(f"DEBUG: Sample company data: {companies[0]}")
+
+                # Sector33Codeがない場合は、Sector17Codeを使用
                 for company in companies:
-                    if "Sector33Code" not in company and "17SectorCode" in company:
-                        # 17業種→33業種のマッピング（簡易版）
-                        company["Sector33Code"] = company["17SectorCode"]
+                    if "Sector33Code" not in company and "Sector17Code" in company:
+                        company["Sector33Code"] = company["Sector17Code"]
 
                 return companies
             else:
+                print(f"WARNING: No data found in response: {data}")
                 return []
 
         except requests.exceptions.RequestException as e:
-            print(f"全銘柄情報取得エラー: {e}")
+            print(f"ERROR: 全銘柄情報取得エラー: {e}")
+            import traceback
+            traceback.print_exc()
             return []
 
     def get_price_range(self, code: str, start_date: str, end_date: str) -> List[dict]:
