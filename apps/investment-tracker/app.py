@@ -1646,20 +1646,49 @@ def render_sector_rotation():
                 # APIクライアントのテスト
                 st.info("ステップ 1/4: セクター情報を取得中...")
 
+                # まずAPIが動作するかテスト
+                with st.expander("🔍 API接続テスト", expanded=True):
+                    try:
+                        st.write("テスト: 単一銘柄の情報取得...")
+                        test_company = st.session_state.client.get_company_info("72030")
+                        if test_company:
+                            st.success(f"✅ API接続OK: {test_company.get('CompanyName') or test_company.get('CoName', 'N/A')}")
+                        else:
+                            st.error("❌ API接続失敗: get_company_info()が空を返しました")
+                    except Exception as e:
+                        st.error(f"❌ API接続エラー: {e}")
+
+                    try:
+                        st.write("テスト: 全銘柄情報取得...")
+                        test_companies = st.session_state.client.get_listed_companies()
+                        if test_companies:
+                            st.success(f"✅ 全銘柄取得OK: {len(test_companies)}銘柄")
+                            # サンプルデータを表示
+                            if len(test_companies) > 0:
+                                sample = test_companies[0]
+                                st.write("サンプルデータ（1件目）:")
+                                st.json({
+                                    "Code": sample.get("Code"),
+                                    "CompanyName": sample.get("CompanyName") or sample.get("CoName"),
+                                    "Sector33Code": sample.get("Sector33Code"),
+                                    "Sector17Code": sample.get("Sector17Code"),
+                                    "Keys": list(sample.keys())[:10]  # 最初の10個のキー
+                                })
+                        else:
+                            st.error("❌ 全銘柄取得失敗: get_listed_companies()が空を返しました")
+                            return
+                    except Exception as e:
+                        st.error(f"❌ 全銘柄取得エラー: {e}")
+                        import traceback
+                        st.code(traceback.format_exc())
+                        return
+
                 # セクターマスター取得
                 sector_master = get_sector_master(st.session_state.client)
 
                 if not sector_master:
                     st.error("❌ セクター情報の取得に失敗しました")
-                    st.warning("デバッグ情報:")
-                    st.write("- J-Quants APIクライアントが正しく初期化されているか確認してください")
-                    st.write("- ログ（Manage app → Logs）で詳細なエラー情報を確認できます")
-                    st.code("""
-デバッグ手順:
-1. Streamlit Cloudの「Manage app」をクリック
-2. 「Logs」タブを開く
-3. 「DEBUG:」または「ERROR:」で始まる行を探す
-                    """)
+                    st.warning("上記のAPI接続テストの結果を確認してください")
                     return
 
                 st.success(f"✅ {len(sector_master)}銘柄のセクター情報を取得しました")
