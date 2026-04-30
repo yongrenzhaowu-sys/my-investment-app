@@ -368,24 +368,19 @@ class JQuantsClient:
         """
         TOPIX-17業種指数のデータを取得
 
+        まず全データ一括取得を試し、失敗したら業種コードごとに取得
+
         Args:
             start_date: 開始日（YYYY-MM-DD）
             end_date: 終了日（YYYY-MM-DD）
 
         Returns:
             17業種指数データのリスト
-            [
-                {
-                    "Date": "2026-04-30",
-                    "SectorCode": "1",  // 業種コード（1-17）
-                    "Close": 1234.56,
-                    ...
-                },
-                ...
-            ]
         """
         url = f"{self.BASE_URL}/indices/topix_industry"
 
+        # 方法1: 全データ一括取得を試す
+        print(f"DEBUG: Trying to fetch all sectors at once")
         params = {
             "start_dt": start_date.replace("-", ""),
             "end_dt": end_date.replace("-", "")
@@ -393,21 +388,83 @@ class JQuantsClient:
 
         try:
             response = self.session.get(url, params=params, timeout=30)
-            response.raise_for_status()
+            print(f"DEBUG: Response status: {response.status_code}")
 
-            data = response.json()
+            if response.status_code == 200:
+                data = response.json()
+                print(f"DEBUG: Response keys: {list(data.keys())}")
 
-            # レスポンスキーの候補
-            if "industry" in data and data["industry"]:
-                return data["industry"]
-            elif "data" in data and data["data"]:
-                return data["data"]
-            elif "topix_industry" in data and data["topix_industry"]:
-                return data["topix_industry"]
-            else:
-                print(f"WARNING: Unexpected response format: {data.keys() if isinstance(data, dict) else 'Not a dict'}")
-                return []
+                # データ取得
+                sector_data = None
+                if "industry" in data and data["industry"]:
+                    sector_data = data["industry"]
+                    print(f"DEBUG: Found 'industry' key with {len(sector_data)} records")
+                elif "data" in data and data["data"]:
+                    sector_data = data["data"]
+                    print(f"DEBUG: Found 'data' key with {len(sector_data)} records")
+                elif "topix_industry" in data and data["topix_industry"]:
+                    sector_data = data["topix_industry"]
+                    print(f"DEBUG: Found 'topix_industry' key with {len(sector_data)} records")
 
-        except requests.exceptions.RequestException as e:
-            print(f"TOPIX-17業種指数データ取得エラー: {e}")
-            return []
+                if sector_data and len(sector_data) > 0:
+                    # サンプルデータを表示
+                    print(f"DEBUG: Sample record: {sector_data[0]}")
+                    return sector_data
+
+        except Exception as e:
+            print(f"DEBUG: Bulk fetch failed: {e}")
+
+        # 方法2: 業種コードごとに取得
+        print(f"DEBUG: Falling back to per-sector fetch")
+        all_data = []
+
+        # 複数のコード形式を試す
+        code_patterns = [
+            [str(i) for i in range(1, 18)],  # "1", "2", ..., "17"
+            [f"{i:02d}" for i in range(1, 18)],  # "01", "02", ..., "17"
+            [f"{i:04d}" for i in range(50, 180, 10)],  # "0050", "0060", ..., "0170"
+        ]
+
+        for pattern_name, codes in zip(["1-17", "01-17", "0050-0170"], code_patterns):
+            print(f"DEBUG: Trying code pattern: {pattern_name}")
+
+            for code in codes[:2]:  # 最初の2つだけテスト
+                params = {
+                    "code": code,
+                    "start_dt": start_date.replace("-", ""),
+                    "end_dt": end_date.replace("-", "")
+                }
+
+                try:
+                    response = self.session.get(url, params=params, timeout=30)
+                    if response.status_code == 200:
+                        data = response.json()
+
+                        sector_data = None
+                        if "industry" in data and data["industry"]:
+                            sector_data = data["industry"]
+                        elif "data" in data and data["data"]:
+                            sector_data = data["data"]
+                        elif "topix_industry" in data and data["topix_industry"]:
+                            sector_data = data["topix_industry"]
+
+                        if sector_data:
+                            print(f"DEBUG: Success with pattern {pattern_name}, code {code}: {len(sector_data)} records")
+                            # このパターンで全データを取得
+                            all_data = []
+                            for full_code in codes:
+                                params["code"] = full_code
+                                resp = self.session.get(url, params=params, timeout=30)
+                                if resp.status_code == 200:
+                                    d = resp.json()
+                                    sd = d.get("industry") or d.get("data") or d.get("topix_industry")
+                                    if sd:
+                                        all_data.extend(sd)
+                            return all_data
+
+                except Exception as e:
+                    print(f"DEBUG: Error with code {code}: {e}")
+                    continue
+
+        print("ERROR: All fetch methods failed")
+        return []
