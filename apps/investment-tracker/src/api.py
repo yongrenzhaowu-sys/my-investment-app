@@ -255,7 +255,8 @@ class JQuantsClient:
         Returns:
             銘柄情報のリスト [{"Code": "72030", "Sector33Code": "5050", ...}, ...]
         """
-        url = f"{self.BASE_URL}/equities/master"
+        # J-Quants API V2では /listed/info エンドポイントを使用
+        url = f"{self.BASE_URL}/listed/info"
 
         try:
             print(f"DEBUG: Fetching listed companies from {url}")
@@ -269,13 +270,23 @@ class JQuantsClient:
 
             print(f"DEBUG: Response keys: {data.keys() if isinstance(data, dict) else 'Not a dict'}")
 
-            if "data" in data and data["data"]:
+            # レスポンスキーの候補: "info", "data", "listed_info"
+            companies = None
+            if "info" in data and data["info"]:
+                companies = data["info"]
+            elif "data" in data and data["data"]:
                 companies = data["data"]
+            elif "listed_info" in data and data["listed_info"]:
+                companies = data["listed_info"]
+
+            if companies:
                 print(f"DEBUG: Found {len(companies)} companies")
 
                 # 最初の1件をサンプル表示
                 if companies:
-                    print(f"DEBUG: Sample company data: {companies[0]}")
+                    sample = companies[0]
+                    print(f"DEBUG: Sample company keys: {sample.keys()}")
+                    print(f"DEBUG: Sample company data: Code={sample.get('Code')}, Sector33Code={sample.get('Sector33Code')}, Sector17Code={sample.get('Sector17Code')}")
 
                 # Sector33Codeがない場合は、Sector17Codeを使用
                 for company in companies:
@@ -284,7 +295,8 @@ class JQuantsClient:
 
                 return companies
             else:
-                print(f"WARNING: No data found in response: {data}")
+                print(f"WARNING: No companies found in response")
+                print(f"WARNING: Response data: {str(data)[:500]}")  # 最初の500文字のみ
                 return []
 
         except requests.exceptions.RequestException as e:

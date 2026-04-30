@@ -1643,17 +1643,34 @@ def render_sector_rotation():
     if st.button("🔍 分析開始", type="primary", use_container_width=True):
         with st.spinner("セクター別リターンを計算中..."):
             try:
-                # セクターマスター取得（キャッシュ）
+                # APIクライアントのテスト
+                st.info("ステップ 1/4: セクター情報を取得中...")
+
+                # セクターマスター取得
                 sector_master = get_sector_master(st.session_state.client)
 
                 if not sector_master:
-                    st.error("セクター情報の取得に失敗しました")
+                    st.error("❌ セクター情報の取得に失敗しました")
+                    st.warning("デバッグ情報:")
+                    st.write("- J-Quants APIクライアントが正しく初期化されているか確認してください")
+                    st.write("- ログ（Manage app → Logs）で詳細なエラー情報を確認できます")
+                    st.code("""
+デバッグ手順:
+1. Streamlit Cloudの「Manage app」をクリック
+2. 「Logs」タブを開く
+3. 「DEBUG:」または「ERROR:」で始まる行を探す
+                    """)
                     return
 
+                st.success(f"✅ {len(sector_master)}銘柄のセクター情報を取得しました")
+
                 # セクター別銘柄リスト
+                st.info("ステップ 2/4: セクター別銘柄を分類中...")
                 stocks_by_sector = get_stocks_by_sector(sector_master)
+                st.success(f"✅ {len(stocks_by_sector)}セクターに分類しました")
 
                 # セクターリターン計算
+                st.info(f"ステップ 3/4: セクター別リターンを計算中...（{len(stocks_by_sector)}セクター × 数百銘柄、時間がかかります）")
                 sector_returns = calculate_sector_returns(
                     st.session_state.client,
                     sector_master,
@@ -1664,6 +1681,7 @@ def render_sector_rotation():
                 )
 
                 # TOPIXリターン計算
+                st.info("ステップ 4/4: TOPIXリターンを計算中...")
                 topix_return = calculate_topix_return(
                     st.session_state.client,
                     start_date.strftime("%Y-%m-%d"),
@@ -1671,6 +1689,7 @@ def render_sector_rotation():
                 )
 
                 # 相対リターン計算
+                st.info("ステップ 4/4: 相対リターンを計算中...")
                 relative_returns = calculate_relative_returns(
                     sector_returns,
                     topix_return,
