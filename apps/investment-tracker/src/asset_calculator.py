@@ -97,7 +97,7 @@ def calculate_cash_at_date(
     hypotheses: List[Dict],
     trading_history: List[Dict],
     initial_capital: float,
-    additional_capital: float = 0
+    additional_investments: List[Dict] = None
 ) -> float:
     """
     指定日時点の現金残高を計算
@@ -107,15 +107,22 @@ def calculate_cash_at_date(
         hypotheses: 現在保有中の銘柄リスト
         trading_history: 売買履歴
         initial_capital: 初期資金
-        additional_capital: 追加投資額
+        additional_investments: 追加投資履歴 [{"date": "YYYY-MM-DD", "amount": 金額}, ...]
 
     Returns:
         現金残高
     """
     target_dt = datetime.strptime(target_date, "%Y-%m-%d")
 
-    # 初期資金 + 追加投資額
-    cash = initial_capital + additional_capital
+    # 初期資金
+    cash = initial_capital
+
+    # target_date以前の追加投資のみを加算
+    if additional_investments:
+        for investment in additional_investments:
+            inv_dt = datetime.strptime(investment["date"], "%Y-%m-%d")
+            if inv_dt <= target_dt:
+                cash += investment["amount"]
 
     # target_date以前の購入による支出
     for hypo in hypotheses:
@@ -145,7 +152,7 @@ def calculate_asset_value_at_date(
     hypotheses: List[Dict],
     trading_history: List[Dict],
     initial_capital: float,
-    additional_capital: float = 0
+    additional_investments: List[Dict] = None
 ) -> Dict[str, float]:
     """
     指定日時点の資産額を計算
@@ -155,7 +162,7 @@ def calculate_asset_value_at_date(
         hypotheses: 現在保有中の銘柄リスト
         trading_history: 売買履歴
         initial_capital: 初期資金
-        additional_capital: 追加投資額
+        additional_investments: 追加投資履歴 [{"date": "YYYY-MM-DD", "amount": 金額}, ...]
 
     Returns:
         {
@@ -185,7 +192,7 @@ def calculate_asset_value_at_date(
         })
 
     cash = calculate_cash_at_date(
-        target_date, hypotheses, trading_history, initial_capital, additional_capital
+        target_date, hypotheses, trading_history, initial_capital, additional_investments
     )
 
     return {
@@ -202,7 +209,7 @@ def calculate_asset_change(
     hypotheses: List[Dict],
     trading_history: List[Dict],
     initial_capital: float,
-    additional_capital: float = 0,
+    additional_investments: List[Dict] = None,
     end_date: str = None
 ) -> Dict[str, float]:
     """
@@ -213,7 +220,7 @@ def calculate_asset_change(
         hypotheses: 現在保有中の銘柄リスト
         trading_history: 売買履歴
         initial_capital: 初期資金
-        additional_capital: 追加投資額
+        additional_investments: 追加投資履歴 [{"date": "YYYY-MM-DD", "amount": 金額}, ...]
         end_date: 終了日（YYYY-MM-DD）。Noneの場合は現在日
 
     Returns:
@@ -232,7 +239,7 @@ def calculate_asset_change(
     """
     # 開始日の資産額
     start_value = calculate_asset_value_at_date(
-        start_date, hypotheses, trading_history, initial_capital, additional_capital
+        start_date, hypotheses, trading_history, initial_capital, additional_investments
     )
 
     # 終了日の資産額（end_dateが指定されていない場合は現在日）
@@ -240,7 +247,7 @@ def calculate_asset_change(
         end_date = datetime.now().strftime("%Y-%m-%d")
 
     end_value = calculate_asset_value_at_date(
-        end_date, hypotheses, trading_history, initial_capital, additional_capital
+        end_date, hypotheses, trading_history, initial_capital, additional_investments
     )
 
     change_amount = end_value["total_asset"] - start_value["total_asset"]
@@ -268,7 +275,7 @@ def get_asset_history(
     hypotheses: List[Dict],
     trading_history: List[Dict],
     initial_capital: float,
-    additional_capital: float = 0
+    additional_investments: List[Dict] = None
 ) -> pd.DataFrame:
     """
     期間中の日次資産推移を取得
@@ -279,7 +286,7 @@ def get_asset_history(
         hypotheses: 現在保有中の銘柄リスト
         trading_history: 売買履歴
         initial_capital: 初期資金
-        additional_capital: 追加投資額
+        additional_investments: 追加投資履歴 [{"date": "YYYY-MM-DD", "amount": 金額}, ...]
 
     Returns:
         日次資産推移DataFrame（列: date, market_value, cash, total_asset）
@@ -293,7 +300,7 @@ def get_asset_history(
     for date in dates:
         date_str = date.strftime("%Y-%m-%d")
         value = calculate_asset_value_at_date(
-            date_str, hypotheses, trading_history, initial_capital, additional_capital
+            date_str, hypotheses, trading_history, initial_capital, additional_investments
         )
         history.append({
             "date": date_str,

@@ -1,12 +1,13 @@
 """設定管理モジュール"""
 import json
 import os
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 
 DEFAULT_SETTINGS = {
     "initial_capital": 1_000_000,  # デフォルト: 100万円
-    "additional_capital": 0,  # デフォルト: 0円（追加投資なし）
+    "additional_capital": 0,  # デフォルト: 0円（追加投資なし）【非推奨】
+    "additional_investments": [],  # デフォルト: 追加投資なし
 }
 
 
@@ -127,7 +128,7 @@ def get_additional_capital() -> int:
 
 def set_additional_capital(capital: float) -> bool:
     """
-    追加投資額を設定
+    【非推奨】追加投資額を設定（後方互換性のため残す）
 
     Args:
         capital: 追加投資額（円）
@@ -138,4 +139,99 @@ def set_additional_capital(capital: float) -> bool:
     settings = load_settings()
     settings["additional_capital"] = capital
     return save_settings(settings)
+
+
+def migrate_additional_capital() -> Dict[str, Any]:
+    """
+    既存のadditional_capitalをadditional_investmentsに変換
+
+    Returns:
+        変換後の設定
+    """
+    settings = load_settings()
+
+    # 古い形式があれば変換
+    if "additional_capital" in settings and "additional_investments" not in settings:
+        if settings["additional_capital"] > 0:
+            # デフォルト日付は2026-01-01（運用開始日と仮定）
+            settings["additional_investments"] = [
+                {
+                    "date": "2026-01-01",
+                    "amount": settings["additional_capital"]
+                }
+            ]
+        else:
+            settings["additional_investments"] = []
+
+        # 古いキーは残す（後方互換性のため）
+        # del settings["additional_capital"]
+
+        save_settings(settings)
+
+    return settings
+
+
+def get_additional_investments() -> List[Dict]:
+    """
+    追加投資履歴を取得
+
+    Returns:
+        [{"date": "YYYY-MM-DD", "amount": 金額}, ...]
+    """
+    # マイグレーション
+    settings = migrate_additional_capital()
+
+    return settings.get("additional_investments", [])
+
+
+def add_additional_investment(date: str, amount: float) -> bool:
+    """
+    追加投資を記録
+
+    Args:
+        date: 追加投資日（YYYY-MM-DD）
+        amount: 金額
+
+    Returns:
+        成功時True
+    """
+    settings = load_settings()
+
+    if "additional_investments" not in settings:
+        settings["additional_investments"] = []
+
+    settings["additional_investments"].append({
+        "date": date,
+        "amount": amount
+    })
+
+    # 日付順にソート
+    settings["additional_investments"] = sorted(
+        settings["additional_investments"],
+        key=lambda x: x["date"]
+    )
+
+    return save_settings(settings)
+
+
+def remove_additional_investment(index: int) -> bool:
+    """
+    追加投資を削除
+
+    Args:
+        index: 削除するインデックス
+
+    Returns:
+        成功時True
+    """
+    settings = load_settings()
+
+    if "additional_investments" not in settings:
+        return False
+
+    if 0 <= index < len(settings["additional_investments"]):
+        settings["additional_investments"].pop(index)
+        return save_settings(settings)
+
+    return False
 

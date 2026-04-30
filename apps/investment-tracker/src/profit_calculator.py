@@ -139,7 +139,7 @@ def calculate_total_profit(hypotheses: List[Dict]) -> Dict[str, float]:
 def calculate_available_capital(
     hypotheses: List[Dict],
     initial_capital: float = 1_000_000,
-    additional_capital: float = 0
+    additional_investments: List[Dict] = None
 ) -> Dict[str, float]:
     """
     余力を計算
@@ -147,12 +147,12 @@ def calculate_available_capital(
     Args:
         hypotheses: 保持中の仮説リスト
         initial_capital: 初期資金（デフォルト: 100万円）
-        additional_capital: 追加投資額（デフォルト: 0円）
+        additional_investments: 追加投資履歴 [{"date": "YYYY-MM-DD", "amount": 金額}, ...]
 
     Returns:
         {
             "initial_capital": 初期資金,
-            "additional_capital": 追加投資額,
+            "additional_capital": 追加投資額の合計,
             "total_capital": 合計投資額（初期 + 追加）,
             "current_investment": 現在保有額,
             "cumulative_sales": 累計売却額（税引き後）,
@@ -179,6 +179,11 @@ def calculate_available_capital(
         record["purchase_price"] * record["shares"]
         for record in history
     )
+
+    # 追加投資額の合計
+    additional_capital = 0
+    if additional_investments:
+        additional_capital = sum(inv["amount"] for inv in additional_investments)
 
     # 合計投資額（初期資金 + 追加投資額）
     total_capital = initial_capital + additional_capital

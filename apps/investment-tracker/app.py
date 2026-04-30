@@ -31,7 +31,15 @@ from src.profit_calculator import (
     calculate_available_capital,
     calculate_yearly_profit
 )
-from src.settings import load_settings, save_settings, get_initial_capital, get_additional_capital
+from src.settings import (
+    load_settings,
+    save_settings,
+    get_initial_capital,
+    get_additional_capital,
+    get_additional_investments,
+    add_additional_investment,
+    remove_additional_investment
+)
 from src.metrics import (
     calculate_sharpe_ratio,
     calculate_max_drawdown,
@@ -811,84 +819,60 @@ def render_profit_summary():
                 st.warning("⚠️ 初期資金を更新しました（永続化に失敗）")
             st.rerun()
 
-    # 追加投資額設定（投資可能額の計算前に行う必要があるため、ここで実行）
-    with st.expander("💰 追加投資額設定"):
-        st.info(f"**現在の追加投資額**: ¥{st.session_state.additional_capital:,}")
-        st.caption("楽天銀行からスイープされた追加資金をここで管理します")
+    # 追加投資履歴管理
+    with st.expander("💰 追加投資履歴"):
+        investments = st.session_state.additional_investments
 
-        # Streamlit Cloudの場合の注意事項
-        if use_gsheets():
-            st.caption("💡 **Streamlit Cloudで追加投資額を変更する場合**：Settings → Secrets から `additional_capital` を更新してください")
+        # 合計表示
+        total = sum(inv["amount"] for inv in investments)
+        st.info(f"**追加投資額の合計**: ¥{total:,}")
+        st.caption("楽天銀行からスイープされた追加資金や、後から入金した資金をここで管理します")
 
-        # 仮の投資可能額を計算（現在の追加投資額で）
-        temp_available = calculate_available_capital(
-            hypotheses,
-            st.session_state.initial_capital,
-            st.session_state.additional_capital
-        )
-
-        # 投資可能額がマイナスの場合、警告と自動計算ボタンを表示
-        if temp_available['available_capital'] < 0:
-            st.warning(f"⚠️ **投資可能額がマイナスです**: ¥{temp_available['available_capital']:,.0f}")
-            st.info("💡 楽天銀行からスイープで資金が追加されている可能性があります")
-
-            if st.button("🔄 追加投資額を自動計算", key="auto_calc_additional", type="primary"):
-                # マイナス分を追加投資額に加算
-                deficit = abs(temp_available['available_capital'])
-                new_additional = st.session_state.additional_capital + deficit
-
-                # セッション状態を更新
-                st.session_state.additional_capital = new_additional
-
-                # settings.jsonに保存
-                settings = load_settings()
-                settings["additional_capital"] = new_additional
-                if save_settings(settings):
-                    st.success(f"✅ 追加投資額を ¥{new_additional:,} に更新しました（マイナス分 ¥{deficit:,.0f} を追加）")
-                else:
-                    st.warning("⚠️ 追加投資額を更新しました（永続化に失敗）")
-                st.rerun()
+        # 履歴一覧
+        if investments:
+            st.subheader("📋 履歴")
+            for i, inv in enumerate(investments):
+                col1, col2, col3 = st.columns([2, 2, 1])
+                with col1:
+                    st.write(f"日付: {inv['date']}")
+                with col2:
+                    st.write(f"金額: ¥{inv['amount']:,}")
+                with col3:
+                    if st.button("🗑️", key=f"delete_inv_{i}"):
+                        if remove_additional_investment(i):
+                            st.session_state.additional_investments = get_additional_investments()
+                            st.success("削除しました")
+                            st.rerun()
+                        else:
+                            st.error("削除に失敗しました")
 
         st.divider()
 
-        # 手動入力
-        st.subheader("手動で設定")
-        new_additional = st.number_input(
-            "追加投資額（円）",
-            min_value=0,
-            value=int(st.session_state.additional_capital),
-            step=100_000,
-            key="new_additional_capital_input",
-            help="楽天銀行からスイープされた追加資金を入力してください"
-        )
+        # 新規追加フォーム
+        st.subheader("➕ 追加投資を記録")
+        with st.form("add_investment_form"):
+            inv_date = st.date_input("追加投資日", value=datetime.now())
+            inv_amount = st.number_input("金額（円）", min_value=0, step=100_000)
 
-        # 値が変更されたかチェック
-        is_additional_changed = new_additional != st.session_state.additional_capital
-
-        if st.button(
-            "更新" if is_additional_changed else "更新（変更なし）",
-            key="update_additional_capital",
-            type="primary" if is_additional_changed else "secondary",
-            disabled=not is_additional_changed
-        ):
-            # セッション状態を更新
-            st.session_state.additional_capital = new_additional
-
-            # settings.jsonに保存
-            settings = load_settings()
-            settings["additional_capital"] = new_additional
-            if save_settings(settings):
-                st.success(f"✅ 追加投資額を ¥{new_additional:,} に更新しました（永続化済み）")
-                # セッション状態を明示的に更新
-                st.session_state.additional_capital = new_additional
-            else:
-                st.warning("⚠️ 追加投資額を更新しました（永続化に失敗）")
-            st.rerun()
+            submitted = st.form_submit_button("追加", type="primary")
+            if submitted:
+                if inv_amount > 0:
+                    if add_additional_investment(
+                        inv_date.strftime("%Y-%m-%d"),
+                        inv_amount
+                    ):
+                        st.session_state.additional_investments = get_additional_investments()
+                        st.success(f"✅ ¥{inv_amount:,} を記録しました")
+                        st.rerun()
+                    else:
+                        st.error("追加に失敗しました")
+                else:
+                    st.error("金額は1円以上を入力してください")
 
     available = calculate_available_capital(
         hypotheses,
         st.session_state.initial_capital,
-        st.session_state.additional_capital
+        st.session_state.additional_investments
     )
 
     # 総資産と損益を計算
@@ -1390,7 +1374,7 @@ def render_asset_tracking():
     hypotheses = load_hypotheses()
     trading_history = load_trading_history()
     initial_capital = st.session_state.get("initial_capital", 1_000_000)
-    additional_capital = st.session_state.get("additional_capital", 0)
+    additional_investments = st.session_state.get("additional_investments", [])
 
     # 期間選択
     st.subheader("📅 期間を選択")
@@ -1430,7 +1414,7 @@ def render_asset_tracking():
                     hypotheses=hypotheses,
                     trading_history=trading_history,
                     initial_capital=initial_capital,
-                    additional_capital=additional_capital,
+                    additional_investments=additional_investments,
                     end_date=end_date.strftime("%Y-%m-%d")
                 )
 
@@ -1529,7 +1513,7 @@ def render_asset_tracking():
                     hypotheses=hypotheses,
                     trading_history=trading_history,
                     initial_capital=initial_capital,
-                    additional_capital=additional_capital
+                    additional_investments=additional_investments
                 )
 
                 # Plotlyグラフ作成
@@ -1617,11 +1601,11 @@ def main():
         st.session_state.initial_capital = loaded_value
         print(f"DEBUG: 初回読み込み - initial_capital = {loaded_value}")
 
-    # 4. 追加投資額の設定（未設定の場合のみ読み込み）
-    if "additional_capital" not in st.session_state:
-        loaded_value = get_additional_capital()
-        st.session_state.additional_capital = loaded_value
-        print(f"DEBUG: 初回読み込み - additional_capital = {loaded_value}")
+    # 4. 追加投資履歴の設定（未設定の場合のみ読み込み、マイグレーション含む）
+    if "additional_investments" not in st.session_state:
+        loaded_value = get_additional_investments()  # 内部でマイグレーション実行
+        st.session_state.additional_investments = loaded_value
+        print(f"DEBUG: 初回読み込み - additional_investments = {loaded_value}")
 
     # 4. サイドバー
     render_sidebar()

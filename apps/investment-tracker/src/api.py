@@ -247,3 +247,92 @@ class JQuantsClient:
         except requests.exceptions.RequestException as e:
             print(f"業績予想データ取得エラー（{code}）: {e}")
             return pd.DataFrame()
+
+    def get_listed_companies(self) -> List[dict]:
+        """
+        全上場銘柄の情報を取得（セクターコード含む）
+
+        Returns:
+            銘柄情報のリスト [{"Code": "72030", "Sector33Code": "5050", ...}, ...]
+        """
+        url = f"{self.BASE_URL}/equities/master"
+
+        try:
+            response = self.session.get(url, timeout=60)
+            response.raise_for_status()
+
+            data = response.json()
+
+            if "data" in data and data["data"]:
+                companies = data["data"]
+
+                # Sector33Codeがない場合は、17SectorCodeを使用
+                for company in companies:
+                    if "Sector33Code" not in company and "17SectorCode" in company:
+                        # 17業種→33業種のマッピング（簡易版）
+                        company["Sector33Code"] = company["17SectorCode"]
+
+                return companies
+            else:
+                return []
+
+        except requests.exceptions.RequestException as e:
+            print(f"全銘柄情報取得エラー: {e}")
+            return []
+
+    def get_price_range(self, code: str, start_date: str, end_date: str) -> List[dict]:
+        """
+        期間指定で株価データを取得
+
+        Args:
+            code: 銘柄コード
+            start_date: 開始日（YYYY-MM-DD）
+            end_date: 終了日（YYYY-MM-DD）
+
+        Returns:
+            株価データのリスト [{"Date": "2026-04-30", "Close": 1500.0, ...}, ...]
+        """
+        df = self.get_daily_quotes(code, start_date, end_date)
+
+        if df.empty:
+            return []
+
+        # DataFrameをdictのリストに変換
+        return df.to_dict('records')
+
+    def get_indices_topix(self, start_date: str, end_date: str) -> List[dict]:
+        """
+        TOPIXのデータを取得
+
+        Args:
+            start_date: 開始日（YYYY-MM-DD）
+            end_date: 終了日（YYYY-MM-DD）
+
+        Returns:
+            TOPIXデータのリスト [{"Date": "2026-04-30", "Close": 2800.0}, ...]
+        """
+        url = f"{self.BASE_URL}/indices/topix"
+
+        params = {
+            "start_dt": start_date.replace("-", ""),
+            "end_dt": end_date.replace("-", "")
+        }
+
+        try:
+            response = self.session.get(url, params=params, timeout=30)
+            response.raise_for_status()
+
+            data = response.json()
+
+            if "topix" in data and data["topix"]:
+                topix_data = data["topix"]
+            elif "data" in data and data["data"]:
+                topix_data = data["data"]
+            else:
+                return []
+
+            return topix_data
+
+        except requests.exceptions.RequestException as e:
+            print(f"TOPIXデータ取得エラー: {e}")
+            return []
