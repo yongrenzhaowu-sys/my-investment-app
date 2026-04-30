@@ -1633,6 +1633,35 @@ def render_sector_rotation():
     if st.button("🔍 分析開始", type="primary", use_container_width=True):
         with st.spinner("TOPIX-17業種指数データを取得中..."):
             try:
+                # デバッグ用エクスパンダー
+                debug_expander = st.expander("🔍 デバッグ情報", expanded=True)
+
+                with debug_expander:
+                    st.write("### API接続テスト")
+
+                    # 直接APIを呼び出してデバッグ
+                    import io
+                    import sys
+                    from contextlib import redirect_stdout
+
+                    # 標準出力をキャプチャ
+                    f = io.StringIO()
+                    with redirect_stdout(f):
+                        sector_data = st.session_state.client.get_topix_17_sectors(
+                            start_date.strftime("%Y-%m-%d"),
+                            end_date.strftime("%Y-%m-%d")
+                        )
+
+                    # キャプチャした出力を表示
+                    output = f.getvalue()
+                    if output:
+                        st.code(output)
+
+                    st.write(f"取得データ件数: {len(sector_data) if sector_data else 0}")
+                    if sector_data:
+                        st.write("サンプルデータ（最初の3件）:")
+                        st.json(sector_data[:3])
+
                 # ステップ 1: TOPIX-17業種指数取得
                 st.info("ステップ 1/3: TOPIX-17業種指数を取得中...")
                 sector_returns = calculate_sector_returns_from_indices(
