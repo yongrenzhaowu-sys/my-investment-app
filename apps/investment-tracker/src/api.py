@@ -528,7 +528,14 @@ class JQuantsClient:
         print(f"DEBUG: Fetching 33 sector indices from {url}")
         print(f"DEBUG: Total sector codes: {len(sector_codes)}")
 
-        for code in sector_codes:
+        import time
+
+        for i, code in enumerate(sector_codes):
+            # レート制限対策: 5リクエストごとに1秒待機
+            if i > 0 and i % 5 == 0:
+                print(f"DEBUG: レート制限対策 - 1秒待機中... ({i}/{len(sector_codes)})")
+                time.sleep(1)
+
             params = {
                 "code": code,
                 "from": start_date.replace("-", ""),  # YYYYMMDD形式
