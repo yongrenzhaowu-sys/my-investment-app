@@ -1731,13 +1731,23 @@ def render_sector_strength():
                 # ステップ2: MA乖離計算
                 status_container.info("📈 [2/3] 移動平均乖離計算中...")
                 from src.sector_strength import calculate_ma_divergence
+                from datetime import timedelta
                 try:
+                    # 期間延長の計算（75日MA用に150日分遡る）
+                    extended_start = (start_date - timedelta(days=150)).strftime("%Y-%m-%d")
+                    st.caption(f"データ取得期間: {extended_start} 〜 {end_date.strftime('%Y-%m-%d')}")
+
                     sector_ma_divs, topix_ma_div = calculate_ma_divergence(
                         st.session_state.client,
                         start_date.strftime("%Y-%m-%d"),
                         end_date.strftime("%Y-%m-%d")
                     )
                     st.success(f"✅ MA乖離計算完了: {len(sector_ma_divs)}業種")
+
+                    # データ不足の業種を確認
+                    if len(sector_ma_divs) < len(sector_returns):
+                        missing_count = len(sector_returns) - len(sector_ma_divs)
+                        st.warning(f"⚠️ {missing_count}業種でMA乖離データ不足（移動平均計算に必要なデータ件数が不足）")
                 except Exception as e:
                     st.error(f"❌ MA乖離計算エラー: {e}")
                     import traceback

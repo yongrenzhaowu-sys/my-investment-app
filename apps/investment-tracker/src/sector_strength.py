@@ -135,8 +135,11 @@ def calculate_ma_divergence(
     max_period = max(ma_periods)
     extended_start = (start_dt - timedelta(days=max_period * 2)).strftime("%Y-%m-%d")
 
+    print(f"DEBUG: MA乖離計算 - 期間延長: {extended_start} 〜 {end_date} (最大期間={max_period})")
+
     # 33業種指数データを取得
     sector_data = client.get_sector_33_indices(extended_start, end_date)
+    print(f"DEBUG: MA乖離計算 - 33業種データ取得: {len(sector_data) if sector_data else 0}件")
 
     if not sector_data:
         print("WARNING: No sector index data received")
@@ -166,11 +169,16 @@ def calculate_ma_divergence(
     # 業種ごとにMA乖離を計算
     sector_ma_divs = {}
 
+    print(f"DEBUG: MA乖離計算 - 業種数: {df['Code'].nunique()}")
+
     for sector_code in df["Code"].unique():
         sector_df = df[df["Code"] == sector_code].copy()
         sector_df = sector_df.sort_values("Date")
 
+        print(f"DEBUG: MA乖離計算 - {sector_code}: {len(sector_df)}件（必要: {max_period}件以上）")
+
         if len(sector_df) < max_period:
+            print(f"  → スキップ（データ不足）")
             continue
 
         # 移動平均を計算
