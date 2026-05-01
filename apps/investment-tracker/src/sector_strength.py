@@ -141,6 +141,11 @@ def calculate_ma_divergence(
     sector_data = client.get_sector_33_indices(extended_start, end_date)
     print(f"DEBUG: MA乖離計算 - 33業種データ取得: {len(sector_data) if sector_data else 0}件")
 
+    # データが空の場合は早期リターン
+    if not sector_data:
+        print("ERROR: MA乖離計算 - データが空です")
+        return {}, {}
+
     if not sector_data:
         print("WARNING: No sector index data received")
         return {}, {}

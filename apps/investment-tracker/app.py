@@ -1741,6 +1741,27 @@ def render_sector_strength():
                     extended_start = (start_date - timedelta(days=150)).strftime("%Y-%m-%d")
                     st.caption(f"データ取得期間: {extended_start} 〜 {end_date.strftime('%Y-%m-%d')}")
 
+                    # MA乖離計算前に、取得データを確認
+                    st.info("📊 MA乖離計算用データを取得中...")
+                    test_data = st.session_state.client.get_sector_33_indices(
+                        extended_start,
+                        end_date.strftime("%Y-%m-%d")
+                    )
+                    if test_data:
+                        import pandas as pd
+                        test_df = pd.DataFrame(test_data)
+                        unique_codes = test_df["Code"].unique() if "Code" in test_df.columns else []
+                        st.write(f"取得データ: {len(test_data)}件、業種数: {len(unique_codes)}")
+                        st.write(f"業種コード: {sorted(unique_codes)[:10]}... (最初の10業種)")
+
+                        # 各業種のデータ件数を確認
+                        if "Code" in test_df.columns:
+                            code_counts = test_df["Code"].value_counts()
+                            st.write(f"各業種のデータ件数（サンプル）:")
+                            st.write(code_counts.head(10))
+                    else:
+                        st.error("❌ MA乖離計算用データが空です")
+
                     sector_ma_divs, topix_ma_div = calculate_ma_divergence(
                         st.session_state.client,
                         start_date.strftime("%Y-%m-%d"),
@@ -1752,6 +1773,11 @@ def render_sector_strength():
                     if len(sector_ma_divs) < len(sector_returns):
                         missing_count = len(sector_returns) - len(sector_ma_divs)
                         st.warning(f"⚠️ {missing_count}業種でMA乖離データ不足（移動平均計算に必要なデータ件数が不足）")
+
+                        # どの業種が不足しているか表示
+                        missing_codes = set(sector_returns.keys()) - set(sector_ma_divs.keys())
+                        if missing_codes:
+                            st.write(f"不足している業種: {sorted(missing_codes)}")
                 except Exception as e:
                     st.error(f"❌ MA乖離計算エラー: {e}")
                     import traceback
