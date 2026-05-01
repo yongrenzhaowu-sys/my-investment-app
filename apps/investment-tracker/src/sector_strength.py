@@ -47,7 +47,7 @@ def calculate_period_return(
 
     # 終値列を確認
     close_col = None
-    for col in ["Close", "close", "AdjC"]:
+    for col in ["Close", "close", "AdjC", "C"]:  # "C" を追加
         if col in df.columns:
             close_col = col
             break
@@ -93,7 +93,7 @@ def calculate_period_return(
 
         # 終値列を確認
         topix_close_col = None
-        for col in ["Close", "close", "AdjC"]:
+        for col in ["Close", "close", "AdjC", "C"]:  # "C" を追加
             if col in topix_df.columns:
                 topix_close_col = col
                 break
@@ -203,7 +203,7 @@ def calculate_ma_divergence(
 
         # 終値列を確認
         topix_close_col = None
-        for col in ["Close", "close", "AdjC"]:
+        for col in ["Close", "close", "AdjC", "C"]:  # "C" を追加
             if col in topix_df.columns:
                 topix_close_col = col
                 break
@@ -264,7 +264,7 @@ def calculate_rsi(
 
     # 終値列を確認
     close_col = None
-    for col in ["Close", "close", "AdjC"]:
+    for col in ["Close", "close", "AdjC", "C"]:  # "C" を追加
         if col in df.columns:
             close_col = col
             break
@@ -306,7 +306,7 @@ def calculate_rsi(
 
         # 終値列を確認
         topix_close_col = None
-        for col in ["Close", "close", "AdjC"]:
+        for col in ["Close", "close", "AdjC", "C"]:  # "C" を追加
             if col in topix_df.columns:
                 topix_close_col = col
                 break
