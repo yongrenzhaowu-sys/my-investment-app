@@ -492,3 +492,86 @@ class JQuantsClient:
 
         print("ERROR: All fetch methods failed")
         return []
+
+    def get_sector_33_indices(self, start_date: str, end_date: str) -> List[dict]:
+        """
+        東証33業種指数のデータを取得
+
+        J-Quants API の指数四本値API (/v2/indices/bars/daily) を使用
+        指数コード: 0040〜0072 (33業種)
+
+        Args:
+            start_date: 開始日（YYYY-MM-DD）
+            end_date: 終了日（YYYY-MM-DD）
+
+        Returns:
+            33業種指数データのリスト
+            [{"Date": "2026-04-30", "Code": "0040", "Close": 123.45, ...}, ...]
+        """
+        from .sector_33_data import get_all_sector_codes
+
+        url = f"{self.BASE_URL}/indices/bars/daily"
+
+        # 33業種の指数コードを取得（0040〜0072）
+        sector_codes = get_all_sector_codes()
+
+        all_data = []
+
+        print(f"DEBUG: Fetching 33 sector indices from {url}")
+        print(f"DEBUG: Sector codes: {sector_codes}")
+
+        for code in sector_codes:
+            params = {
+                "code": code,
+                "from": start_date.replace("-", ""),  # YYYYMMDD形式
+                "to": end_date.replace("-", "")       # YYYYMMDD形式
+            }
+
+            try:
+                response = self.session.get(url, params=params, timeout=30)
+
+                if response.status_code == 200:
+                    data = response.json()
+
+                    # レスポンスキーの候補: "daily_bars", "data", "indices"
+                    sector_data = None
+                    if "daily_bars" in data and data["daily_bars"]:
+                        sector_data = data["daily_bars"]
+                    elif "data" in data and data["data"]:
+                        sector_data = data["data"]
+                    elif "indices" in data and data["indices"]:
+                        sector_data = data["indices"]
+
+                    if sector_data:
+                        # 指数コードを追加（レスポンスに含まれていない場合）
+                        for record in sector_data:
+                            if "Code" not in record:
+                                record["Code"] = code
+                        all_data.extend(sector_data)
+                        print(f"DEBUG: Code {code}: {len(sector_data)} records")
+                    else:
+                        print(f"WARNING: Code {code}: No data in response. Keys: {list(data.keys())}")
+
+                elif response.status_code == 403:
+                    print(f"ERROR: Code {code}: 403 Forbidden (プラン制限)")
+                    # 1件でもエラーが出たら全体を中止
+                    raise Exception(f"33業種指数の取得に失敗しました（403 Forbidden）。Standardプラン以上が必要です。")
+                else:
+                    print(f"WARNING: Code {code}: Status {response.status_code}")
+
+            except requests.exceptions.RequestException as e:
+                print(f"ERROR: Code {code}: {e}")
+                # エラーが出ても継続（次の業種を試す）
+                continue
+
+        if not all_data:
+            print("ERROR: No sector index data retrieved")
+            return []
+
+        print(f"DEBUG: Total {len(all_data)} records from {len(sector_codes)} sectors")
+
+        # サンプルデータを表示
+        if all_data:
+            print(f"DEBUG: Sample record: {all_data[0]}")
+
+        return all_data

@@ -207,7 +207,7 @@ def render_sidebar():
     st.sidebar.title("📱 メニュー")
     menu = st.sidebar.radio(
         "選択してください",
-        ["📋 仮説登録", "📊 損益サマリー", "📜 売買履歴", "📈 バリュエーション分析", "💰 資産推移分析", "🔄 セクターローテーション"],
+        ["📋 仮説登録", "📊 損益サマリー", "📜 売買履歴", "📈 バリュエーション分析", "💰 資産推移分析", "🔄 セクターローテーション", "💪 セクター強弱判定"],
         label_visibility="collapsed"
     )
 
@@ -222,6 +222,8 @@ def render_sidebar():
         st.session_state.current_view = "asset_tracking"
     elif menu == "🔄 セクターローテーション":
         st.session_state.current_view = "sector_rotation"
+    elif menu == "💪 セクター強弱判定":
+        st.session_state.current_view = "sector_strength"
     else:
         st.session_state.current_view = "main"
 
@@ -1588,6 +1590,270 @@ def render_asset_tracking():
         """)
 
 
+def render_sector_strength():
+    """セクター強弱判定画面を表示（東証33業種指数）"""
+    st.title("💪 セクター強弱判定（東証33業種）")
+    st.markdown("東証33業種指数をTOPIX対比で強弱判定します。3つの指標（期間リターン、移動平均乖離、RSI）を統合してスコアリングします。")
+
+    # APIクライアントチェック
+    if not hasattr(st.session_state, 'client') or st.session_state.client is None:
+        st.error("J-Quants APIクライアントが初期化されていません。")
+        return
+
+    # 期間選択
+    st.subheader("📅 期間を選択")
+    col1, col2 = st.columns([1, 3])
+
+    with col1:
+        preset = st.selectbox(
+            "プリセット",
+            ["1ヶ月", "3ヶ月", "6ヶ月", "1年", "カスタム"]
+        )
+
+    if preset == "カスタム":
+        col2_1, col2_2 = st.columns(2)
+        with col2_1:
+            start_date = st.date_input("開始日", value=datetime.now() - timedelta(days=30))
+        with col2_2:
+            end_date = st.date_input("終了日", value=datetime.now())
+    else:
+        # プリセットから期間を計算
+        end_date = datetime.now()
+        if preset == "1ヶ月":
+            start_date = end_date - timedelta(days=30)
+        elif preset == "3ヶ月":
+            start_date = end_date - timedelta(days=90)
+        elif preset == "6ヶ月":
+            start_date = end_date - timedelta(days=180)
+        else:  # 1年
+            start_date = end_date - timedelta(days=365)
+
+    # 注意事項
+    st.info("💡 東証33業種指数を使用します（J-Quants API Standard プラン以上）")
+
+    # 分析ボタン
+    if st.button("🔍 分析開始", type="primary", use_container_width=True):
+        with st.spinner("東証33業種指数データを分析中..."):
+            try:
+                from src.sector_strength import analyze_all_sectors
+
+                # 全業種を一括分析
+                results = analyze_all_sectors(
+                    st.session_state.client,
+                    start_date.strftime("%Y-%m-%d"),
+                    end_date.strftime("%Y-%m-%d")
+                )
+
+                # セッション状態に保存
+                st.session_state.sector_strength_data = {
+                    "results": results,
+                    "start_date": start_date.strftime("%Y-%m-%d"),
+                    "end_date": end_date.strftime("%Y-%m-%d")
+                }
+
+                st.success("✅ 分析完了！")
+
+            except Exception as e:
+                st.error(f"❌ 分析エラー: {e}")
+
+                # 詳細なエラー情報を表示
+                import traceback
+                with st.expander("🔍 詳細なエラー情報（デバッグ用）"):
+                    st.code(traceback.format_exc())
+
+    # 結果表示
+    if "sector_strength_data" in st.session_state:
+        data = st.session_state.sector_strength_data
+        results = data["results"]
+
+        st.markdown("---")
+        st.subheader("📊 分析結果")
+
+        # サマリー
+        col1, col2, col3 = st.columns(3)
+        strong_count = sum(1 for r in results if r["strength"] == "強い")
+        normal_count = sum(1 for r in results if r["strength"] == "普通")
+        weak_count = sum(1 for r in results if r["strength"] == "弱い")
+
+        col1.metric("🟢 強い", f"{strong_count}業種")
+        col2.metric("🟡 普通", f"{normal_count}業種")
+        col3.metric("🔴 弱い", f"{weak_count}業種")
+
+        st.divider()
+
+        # フィルタリングとソート
+        col_filter1, col_filter2 = st.columns(2)
+
+        with col_filter1:
+            filter_option = st.selectbox(
+                "フィルター",
+                ["全て", "強いのみ", "普通のみ", "弱いのみ"]
+            )
+
+        with col_filter2:
+            sort_option = st.selectbox(
+                "並び順",
+                ["スコア順", "期間リターン順", "MA乖離順", "RSI順"]
+            )
+
+        # フィルタリング
+        filtered_results = results
+        if filter_option == "強いのみ":
+            filtered_results = [r for r in results if r["strength"] == "強い"]
+        elif filter_option == "普通のみ":
+            filtered_results = [r for r in results if r["strength"] == "普通"]
+        elif filter_option == "弱いのみ":
+            filtered_results = [r for r in results if r["strength"] == "弱い"]
+
+        # ソート
+        if sort_option == "期間リターン順":
+            filtered_results = sorted(filtered_results, key=lambda x: x["period_return"], reverse=True)
+        elif sort_option == "MA乖離順":
+            filtered_results = sorted(filtered_results, key=lambda x: x["ma_div_25"], reverse=True)
+        elif sort_option == "RSI順":
+            filtered_results = sorted(filtered_results, key=lambda x: x["rsi"], reverse=True)
+        # スコア順はデフォルトでソート済み
+
+        st.divider()
+
+        # 結果一覧（カード形式）
+        st.subheader(f"📋 業種一覧（{len(filtered_results)}件）")
+
+        for result in filtered_results:
+            # 強弱に応じて色分け
+            if result["strength"] == "強い":
+                strength_emoji = "🟢"
+                strength_color = "success"
+            elif result["strength"] == "弱い":
+                strength_emoji = "🔴"
+                strength_color = "error"
+            else:
+                strength_emoji = "🟡"
+                strength_color = "warning"
+
+            with st.expander(
+                f"{strength_emoji} **{result['sector_name']}** ({result['sector_code']}) - スコア: {result['score']}",
+                expanded=False
+            ):
+                # 基本情報
+                col1, col2, col3 = st.columns(3)
+
+                with col1:
+                    st.metric(
+                        "期間リターン",
+                        f"{result['period_return']:.2f}%",
+                        delta=f"{result['topix_relative_return']:+.2f}% vs TOPIX"
+                    )
+
+                with col2:
+                    st.metric(
+                        "MA乖離（25日）",
+                        f"{result['ma_div_25']:.2f}%",
+                        delta=f"{result['topix_relative_ma_25']:+.2f}% vs TOPIX"
+                    )
+
+                with col3:
+                    st.metric(
+                        "RSI",
+                        f"{result['rsi']:.1f}",
+                        delta=f"{result['topix_relative_rsi']:+.1f} vs TOPIX"
+                    )
+
+                # 詳細情報
+                st.divider()
+                st.write("**判定内訳:**")
+
+                col_detail1, col_detail2, col_detail3 = st.columns(3)
+
+                with col_detail1:
+                    st.write(f"期間リターン: {'✅ +1' if result['topix_relative_return'] > 0 else '❌ -1'}")
+
+                with col_detail2:
+                    st.write(f"MA乖離: {'✅ +1' if result['topix_relative_ma_25'] > 0 else '❌ -1'}")
+
+                with col_detail3:
+                    st.write(f"RSI: {'✅ +1' if result['topix_relative_rsi'] > 0 else '❌ -1'}")
+
+        # データテーブル（展開可能）
+        st.divider()
+        with st.expander("📊 全データをテーブル表示"):
+            df = pd.DataFrame(filtered_results)
+
+            # 表示用にカラムを整形
+            df_display = df[[
+                "sector_name",
+                "period_return",
+                "ma_div_25",
+                "rsi",
+                "topix_relative_return",
+                "score",
+                "strength"
+            ]].copy()
+
+            df_display.columns = [
+                "業種名",
+                "期間リターン(%)",
+                "MA乖離25日(%)",
+                "RSI",
+                "TOPIX対比リターン(%)",
+                "スコア",
+                "判定"
+            ]
+
+            st.dataframe(
+                df_display,
+                use_container_width=True,
+                hide_index=True
+            )
+
+    # 使い方ガイド
+    with st.expander("📖 使い方ガイド"):
+        st.markdown("""
+        ### セクター強弱判定の使い方
+
+        #### 1. 期間を選択
+        - **プリセット**: 1ヶ月、3ヶ月、6ヶ月、1年から選択
+        - **カスタム**: 任意の開始日・終了日を指定
+
+        #### 2. 分析開始
+        - 「🔍 分析開始」ボタンをクリック
+        - J-Quants APIから東証33業種指数データを取得し、3つの指標で分析
+
+        #### 3. 判定指標の説明
+
+        ##### 期間リターン
+        - 選択期間の騰落率
+        - TOPIX対比でプラスなら +1、マイナスなら -1
+
+        ##### 移動平均乖離（25日MA）
+        - 現在価格と25日移動平均線の乖離率
+        - TOPIX対比でプラスなら +1、マイナスなら -1
+
+        ##### RSI（相対力指数）
+        - 14日RSI（0〜100）
+        - TOPIX対比でプラスなら +1、マイナスなら -1
+
+        #### 4. 総合判定
+        - **スコア**: 3つの指標の合計（-3〜+3）
+        - **強い**: スコア >= 2
+        - **普通**: -1 <= スコア <= 1
+        - **弱い**: スコア <= -2
+
+        ### 東証33業種分類
+        水産・農林業、鉱業、建設業、食料品、繊維製品、パルプ・紙、化学、医薬品、石油・石炭製品、ゴム製品、ガラス・土石製品、鉄鋼、非鉄金属、金属製品、機械、電気機器、輸送用機器、精密機器、その他製品、電気・ガス業、陸運業、海運業、空運業、倉庫・運輸関連業、情報・通信業、卸売業、小売業、銀行業、証券・商品先物取引業、保険業、その他金融業、不動産業、サービス業
+
+        ### 活用方法
+        - 📊 **セクターローテーション戦略**: 強いセクターに投資、弱いセクターを避ける
+        - 📊 **ポートフォリオバランス**: 保有銘柄のセクター偏りを確認
+        - 📊 **マーケット分析**: 相場環境で優位なセクターを特定
+
+        ### データソース
+        - 東証33業種指数（J-Quants API）
+        - 東京証券取引所の公式業種分類
+        - Standard プラン以上で利用可能
+        """)
+
+
 def render_sector_rotation():
     """セクターローテーション分析を表示（TOPIX-17業種指数ベース）"""
     st.title("🔄 セクターローテーション分析")
@@ -1920,6 +2186,9 @@ def main():
     # セクターローテーション分析表示
     elif st.session_state.get("current_view") == "sector_rotation":
         render_sector_rotation()
+    # セクター強弱判定表示
+    elif st.session_state.get("current_view") == "sector_strength":
+        render_sector_strength()
     # 仮説詳細表示
     elif "selected_hypothesis" in st.session_state and st.session_state.selected_hypothesis:
         render_hypothesis_detail(st.session_state.selected_hypothesis)
