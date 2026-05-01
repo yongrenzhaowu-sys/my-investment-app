@@ -162,7 +162,7 @@ def calculate_ma_divergence(
 
     # 終値列を確認
     close_col = None
-    for col in ["Close", "close", "AdjC"]:
+    for col in ["Close", "close", "AdjC", "C"]:  # "C" を追加
         if col in df.columns:
             close_col = col
             break
@@ -171,6 +171,8 @@ def calculate_ma_divergence(
         print(f"ERROR: Close price column not found. Available columns: {df.columns.tolist()}")
         return {}, {}
 
+    print(f"DEBUG: MA乖離計算 - 終値カラム: {close_col}")
+
     # 業種ごとにMA乖離を計算
     sector_ma_divs = {}
 
@@ -178,13 +180,21 @@ def calculate_ma_divergence(
 
     for sector_code in df["Code"].unique():
         sector_df = df[df["Code"] == sector_code].copy()
+
+        # 日付列の存在確認
+        if "Date" not in sector_df.columns:
+            print(f"ERROR: MA乖離計算 - {sector_code}: Date列が存在しません。カラム: {sector_df.columns.tolist()}")
+            continue
+
         sector_df = sector_df.sort_values("Date")
 
         print(f"DEBUG: MA乖離計算 - {sector_code}: {len(sector_df)}件（必要: {max_period}件以上）")
 
         if len(sector_df) < max_period:
-            print(f"  → スキップ（データ不足）")
+            print(f"  → スキップ（データ不足: {len(sector_df)} < {max_period}）")
             continue
+        else:
+            print(f"  → OK（十分なデータ: {len(sector_df)} >= {max_period}）")
 
         # 移動平均を計算
         ma_div = {}
