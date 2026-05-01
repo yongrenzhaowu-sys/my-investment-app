@@ -1731,7 +1731,6 @@ def render_sector_strength():
                 # ステップ2: MA乖離計算
                 status_container.info("📈 [2/3] 移動平均乖離計算中...")
                 from src.sector_strength import calculate_ma_divergence
-                from datetime import timedelta
                 try:
                     # 期間延長の計算（75日MA用に150日分遡る）
                     extended_start = (start_date - timedelta(days=150)).strftime("%Y-%m-%d")
