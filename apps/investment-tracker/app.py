@@ -1716,6 +1716,7 @@ def render_sector_strength():
                 # ステップ1: 期間リターン計算
                 status_container.info("📊 [1/3] 期間リターン計算中...")
                 from src.sector_strength import calculate_period_return
+                from src.sector_33_data import get_all_sector_codes, get_sector_name
                 try:
                     sector_returns, topix_return = calculate_period_return(
                         st.session_state.client,
@@ -1724,9 +1725,25 @@ def render_sector_strength():
                     )
                     st.success(f"✅ 期間リターン計算完了: {len(sector_returns)}業種、TOPIX={topix_return:.2f}%")
 
-                    # 33業種未満の場合は警告
+                    # 33業種未満の場合は警告と詳細を表示
                     if len(sector_returns) < 33:
-                        st.warning(f"⚠️ 取得できたのは{len(sector_returns)}業種のみ（33業種中）。一部の業種でデータが存在しない可能性があります。")
+                        st.warning(f"⚠️ 取得できたのは{len(sector_returns)}業種のみ（33業種中）")
+
+                        # どの業種が取得できていないか表示
+                        all_codes = set(get_all_sector_codes())
+                        obtained_codes = set(sector_returns.keys())
+                        missing_codes = all_codes - obtained_codes
+
+                        with st.expander(f"📋 取得できなかった{len(missing_codes)}業種の詳細"):
+                            st.write("**取得できなかった業種:**")
+                            for code in sorted(missing_codes):
+                                st.write(f"- {code}: {get_sector_name(code)}")
+
+                            st.write("**取得できた業種:**")
+                            for code in sorted(obtained_codes)[:10]:
+                                st.write(f"- {code}: {get_sector_name(code)}")
+                            if len(obtained_codes) > 10:
+                                st.write(f"... 他{len(obtained_codes) - 10}業種")
                 except Exception as e:
                     st.error(f"❌ 期間リターン計算エラー: {e}")
                     import traceback
