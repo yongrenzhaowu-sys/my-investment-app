@@ -1607,7 +1607,8 @@ def render_sector_strength():
     with col1:
         preset = st.selectbox(
             "プリセット",
-            ["1ヶ月", "3ヶ月", "6ヶ月", "1年", "カスタム"]
+            ["1ヶ月", "3ヶ月", "6ヶ月", "1年", "カスタム"],
+            index=2  # デフォルトを「6ヶ月」に設定
         )
 
     if preset == "カスタム":
@@ -2025,7 +2026,8 @@ def render_sector_rotation():
     with col1:
         preset = st.selectbox(
             "プリセット",
-            ["1ヶ月", "3ヶ月", "6ヶ月", "1年", "カスタム"]
+            ["1ヶ月", "3ヶ月", "6ヶ月", "1年", "カスタム"],
+            index=2  # デフォルトを「6ヶ月」に設定
         )
 
     if preset == "カスタム":
