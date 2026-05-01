@@ -1669,6 +1669,15 @@ def render_sector_strength():
         st.markdown("---")
         st.subheader("📊 分析結果")
 
+        # 結果が空の場合
+        if not results:
+            st.warning("⚠️ 分析結果が取得できませんでした。")
+            st.info("**考えられる原因:**")
+            st.write("- J-Quants APIのデータ取得に失敗した")
+            st.write("- Standard プラン以上が必要です")
+            st.write("- ネットワークエラー")
+            return
+
         # サマリー
         col1, col2, col3 = st.columns(3)
         strong_count = sum(1 for r in results if r["strength"] == "強い")
@@ -1777,34 +1786,37 @@ def render_sector_strength():
         # データテーブル（展開可能）
         st.divider()
         with st.expander("📊 全データをテーブル表示"):
-            df = pd.DataFrame(filtered_results)
+            if not filtered_results:
+                st.info("データがありません。")
+            else:
+                df = pd.DataFrame(filtered_results)
 
-            # 表示用にカラムを整形
-            df_display = df[[
-                "sector_name",
-                "period_return",
-                "ma_div_25",
-                "rsi",
-                "topix_relative_return",
-                "score",
-                "strength"
-            ]].copy()
+                # 表示用にカラムを整形
+                df_display = df[[
+                    "sector_name",
+                    "period_return",
+                    "ma_div_25",
+                    "rsi",
+                    "topix_relative_return",
+                    "score",
+                    "strength"
+                ]].copy()
 
-            df_display.columns = [
-                "業種名",
-                "期間リターン(%)",
-                "MA乖離25日(%)",
-                "RSI",
-                "TOPIX対比リターン(%)",
-                "スコア",
-                "判定"
-            ]
+                df_display.columns = [
+                    "業種名",
+                    "期間リターン(%)",
+                    "MA乖離25日(%)",
+                    "RSI",
+                    "TOPIX対比リターン(%)",
+                    "スコア",
+                    "判定"
+                ]
 
-            st.dataframe(
-                df_display,
-                use_container_width=True,
-                hide_index=True
-            )
+                st.dataframe(
+                    df_display,
+                    use_container_width=True,
+                    hide_index=True
+                )
 
     # 使い方ガイド
     with st.expander("📖 使い方ガイド"):
