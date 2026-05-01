@@ -470,22 +470,59 @@ def analyze_all_sectors(
     """
     from .sector_33_data import get_sector_name
 
+    print("=" * 80)
+    print("DEBUG: analyze_all_sectors() 開始")
+    print(f"期間: {start_date} 〜 {end_date}")
+    print("=" * 80)
+
     # 1. 期間リターン計算
-    sector_returns, topix_return = calculate_period_return(client, start_date, end_date)
+    print("\n[1/3] 期間リターン計算中...")
+    try:
+        sector_returns, topix_return = calculate_period_return(client, start_date, end_date)
+        print(f"  ✅ 成功: {len(sector_returns)}業種、TOPIX={topix_return:.2f}%")
+        print(f"  サンプル: {list(sector_returns.items())[:3]}")
+    except Exception as e:
+        print(f"  ❌ エラー: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
 
     # 2. MA乖離計算
-    sector_ma_divs, topix_ma_div = calculate_ma_divergence(client, start_date, end_date)
+    print("\n[2/3] MA乖離計算中...")
+    try:
+        sector_ma_divs, topix_ma_div = calculate_ma_divergence(client, start_date, end_date)
+        print(f"  ✅ 成功: {len(sector_ma_divs)}業種")
+        print(f"  TOPIX MA乖離: {topix_ma_div}")
+        print(f"  サンプル: {list(sector_ma_divs.items())[:3]}")
+    except Exception as e:
+        print(f"  ❌ エラー: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
 
     # 3. RSI計算
-    sector_rsi, topix_rsi = calculate_rsi(client, start_date, end_date)
+    print("\n[3/3] RSI計算中...")
+    try:
+        sector_rsi, topix_rsi = calculate_rsi(client, start_date, end_date)
+        print(f"  ✅ 成功: {len(sector_rsi)}業種、TOPIX RSI={topix_rsi:.1f}")
+        print(f"  サンプル: {list(sector_rsi.items())[:3]}")
+    except Exception as e:
+        print(f"  ❌ エラー: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
 
     # 4. 統合判定
+    print("\n[4/4] 統合判定中...")
     results = []
 
     for sector_code in sector_returns.keys():
         # データが揃っているか確認
-        if (sector_code not in sector_ma_divs or
-            sector_code not in sector_rsi):
+        if sector_code not in sector_ma_divs:
+            print(f"  ⚠️ {sector_code}: MA乖離データなし")
+            continue
+        if sector_code not in sector_rsi:
+            print(f"  ⚠️ {sector_code}: RSIデータなし")
             continue
 
         period_return = sector_returns[sector_code]
@@ -520,7 +557,13 @@ def analyze_all_sectors(
 
         results.append(result)
 
+    print(f"\n✅ 統合判定完了: {len(results)}業種")
+
     # スコア順にソート（降順）
     results = sorted(results, key=lambda x: x["score"], reverse=True)
+
+    print("=" * 80)
+    print(f"DEBUG: analyze_all_sectors() 完了（{len(results)}件）")
+    print("=" * 80)
 
     return results
