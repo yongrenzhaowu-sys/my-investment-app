@@ -1637,7 +1637,77 @@ def render_sector_strength():
             try:
                 from src.sector_strength import analyze_all_sectors
 
+                # デバッグ用エクスパンダー
+                debug_expander = st.expander("🔍 デバッグ情報", expanded=True)
+
+                with debug_expander:
+                    st.write("### API接続テスト")
+                    st.write(f"開始日: {start_date.strftime('%Y-%m-%d')}")
+                    st.write(f"終了日: {end_date.strftime('%Y-%m-%d')}")
+
+                    # 簡単なAPIテスト（TOPIX取得）
+                    try:
+                        st.write("**TOPIXデータ取得テスト...**")
+                        topix_test = st.session_state.client.get_indices_topix(
+                            start_date.strftime("%Y-%m-%d"),
+                            end_date.strftime("%Y-%m-%d")
+                        )
+                        if topix_test:
+                            st.success(f"✅ TOPIX取得成功（{len(topix_test)}件）")
+                            st.json(topix_test[0] if topix_test else {})
+                        else:
+                            st.error("❌ TOPIXデータが空です")
+                    except Exception as te:
+                        st.error(f"❌ TOPIX取得エラー: {te}")
+
+                    # 33業種指数取得テスト（最初の1業種のみ）
+                    try:
+                        st.write("**33業種指数取得テスト（水産・農林業=0040）...**")
+                        from src.sector_33_data import get_all_sector_codes
+                        test_code = get_all_sector_codes()[0]
+
+                        # 直接API呼び出し
+                        url = f"https://api.jquants.com/v2/indices/bars/daily"
+                        params = {
+                            "code": test_code,
+                            "from": start_date.strftime("%Y%m%d"),
+                            "to": end_date.strftime("%Y%m%d")
+                        }
+                        st.write(f"URL: {url}")
+                        st.write(f"パラメータ: {params}")
+
+                        import requests
+                        response = st.session_state.client.session.get(url, params=params, timeout=30)
+                        st.write(f"ステータスコード: {response.status_code}")
+
+                        if response.status_code == 200:
+                            data = response.json()
+                            st.write(f"レスポンスキー: {list(data.keys())}")
+
+                            if "daily_bars" in data and data["daily_bars"]:
+                                st.success(f"✅ 33業種指数取得成功（{len(data['daily_bars'])}件）")
+                                st.json(data["daily_bars"][0])
+                            elif "data" in data and data["data"]:
+                                st.success(f"✅ 33業種指数取得成功（{len(data['data'])}件）")
+                                st.json(data["data"][0])
+                            else:
+                                st.error(f"❌ データキーが見つかりません: {list(data.keys())}")
+                                st.json(data)
+                        elif response.status_code == 403:
+                            st.error("❌ 403 Forbidden - プラン制限またはAPI認証エラー")
+                            st.write("レスポンス:")
+                            st.code(response.text)
+                        else:
+                            st.error(f"❌ HTTPエラー: {response.status_code}")
+                            st.code(response.text)
+
+                    except Exception as se:
+                        st.error(f"❌ 33業種指数取得エラー: {se}")
+                        import traceback
+                        st.code(traceback.format_exc())
+
                 # 全業種を一括分析
+                st.info("全33業種を分析中...")
                 results = analyze_all_sectors(
                     st.session_state.client,
                     start_date.strftime("%Y-%m-%d"),
@@ -1651,7 +1721,10 @@ def render_sector_strength():
                     "end_date": end_date.strftime("%Y-%m-%d")
                 }
 
-                st.success("✅ 分析完了！")
+                if results:
+                    st.success(f"✅ 分析完了！（{len(results)}業種）")
+                else:
+                    st.warning("⚠️ 分析結果が空です")
 
             except Exception as e:
                 st.error(f"❌ 分析エラー: {e}")
