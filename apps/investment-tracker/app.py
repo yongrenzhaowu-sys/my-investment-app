@@ -1800,13 +1800,59 @@ def render_sector_strength():
                     st.code(traceback.format_exc())
                     raise
 
-                # ステップ4: 統合判定
+                # ステップ4: 統合判定（既に取得したデータを使用）
                 status_container.info("🎯 統合判定中...")
-                results = analyze_all_sectors(
-                    st.session_state.client,
-                    start_date.strftime("%Y-%m-%d"),
-                    end_date.strftime("%Y-%m-%d")
-                )
+
+                from src.sector_strength import judge_sector_strength
+                from src.sector_33_data import get_sector_name
+
+                results = []
+
+                for sector_code in sector_returns.keys():
+                    # データが揃っているか確認
+                    if sector_code not in sector_ma_divs:
+                        st.caption(f"⚠️ {sector_code}: MA乖離データなし → スキップ")
+                        continue
+                    if sector_code not in sector_rsi:
+                        st.caption(f"⚠️ {sector_code}: RSIデータなし → スキップ")
+                        continue
+
+                    period_return = sector_returns[sector_code]
+                    ma_div = sector_ma_divs[sector_code]
+                    rsi = sector_rsi[sector_code]
+
+                    # 強弱判定
+                    judgment = judge_sector_strength(
+                        sector_code,
+                        period_return,
+                        ma_div,
+                        rsi,
+                        topix_return,
+                        topix_ma_div,
+                        topix_rsi
+                    )
+
+                    # 結果をまとめる
+                    result = {
+                        "sector_code": sector_code,
+                        "sector_name": get_sector_name(sector_code),
+                        "period_return": period_return,
+                        "ma_div_25": ma_div.get("ma_25", 0),
+                        "ma_div_75": ma_div.get("ma_75", 0),
+                        "rsi": rsi,
+                        "topix_relative_return": period_return - topix_return,
+                        "topix_relative_ma_25": ma_div.get("ma_25", 0) - topix_ma_div.get("ma_25", 0),
+                        "topix_relative_rsi": rsi - topix_rsi,
+                        "score": judgment["score"],
+                        "strength": judgment["strength"]
+                    }
+
+                    results.append(result)
+
+                # スコア順にソート（降順）
+                results = sorted(results, key=lambda x: x["score"], reverse=True)
+
+                st.success(f"✅ 統合判定完了: {len(results)}業種")
 
                 status_container.empty()
 
