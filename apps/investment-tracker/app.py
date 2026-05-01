@@ -1708,11 +1708,67 @@ def render_sector_strength():
 
                 # 全業種を一括分析
                 st.info("全33業種を分析中...")
+
+                # デバッグ用のステータス表示
+                status_container = st.empty()
+
+                # ステップ1: 期間リターン計算
+                status_container.info("📊 [1/3] 期間リターン計算中...")
+                from src.sector_strength import calculate_period_return
+                try:
+                    sector_returns, topix_return = calculate_period_return(
+                        st.session_state.client,
+                        start_date.strftime("%Y-%m-%d"),
+                        end_date.strftime("%Y-%m-%d")
+                    )
+                    st.success(f"✅ 期間リターン計算完了: {len(sector_returns)}業種、TOPIX={topix_return:.2f}%")
+                except Exception as e:
+                    st.error(f"❌ 期間リターン計算エラー: {e}")
+                    import traceback
+                    st.code(traceback.format_exc())
+                    raise
+
+                # ステップ2: MA乖離計算
+                status_container.info("📈 [2/3] 移動平均乖離計算中...")
+                from src.sector_strength import calculate_ma_divergence
+                try:
+                    sector_ma_divs, topix_ma_div = calculate_ma_divergence(
+                        st.session_state.client,
+                        start_date.strftime("%Y-%m-%d"),
+                        end_date.strftime("%Y-%m-%d")
+                    )
+                    st.success(f"✅ MA乖離計算完了: {len(sector_ma_divs)}業種")
+                except Exception as e:
+                    st.error(f"❌ MA乖離計算エラー: {e}")
+                    import traceback
+                    st.code(traceback.format_exc())
+                    raise
+
+                # ステップ3: RSI計算
+                status_container.info("📉 [3/3] RSI計算中...")
+                from src.sector_strength import calculate_rsi
+                try:
+                    sector_rsi, topix_rsi = calculate_rsi(
+                        st.session_state.client,
+                        start_date.strftime("%Y-%m-%d"),
+                        end_date.strftime("%Y-%m-%d")
+                    )
+                    st.success(f"✅ RSI計算完了: {len(sector_rsi)}業種、TOPIX RSI={topix_rsi:.1f}")
+                except Exception as e:
+                    st.error(f"❌ RSI計算エラー: {e}")
+                    import traceback
+                    st.code(traceback.format_exc())
+                    raise
+
+                # ステップ4: 統合判定
+                status_container.info("🎯 統合判定中...")
                 results = analyze_all_sectors(
                     st.session_state.client,
                     start_date.strftime("%Y-%m-%d"),
                     end_date.strftime("%Y-%m-%d")
                 )
+
+                status_container.empty()
 
                 # セッション状態に保存
                 st.session_state.sector_strength_data = {
