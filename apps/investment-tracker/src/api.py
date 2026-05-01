@@ -521,9 +521,12 @@ class JQuantsClient:
         sector_codes = get_all_sector_codes()
 
         all_data = []
+        success_count = 0
+        fail_count = 0
+        failed_codes = []
 
         print(f"DEBUG: Fetching 33 sector indices from {url}")
-        print(f"DEBUG: Sector codes: {sector_codes}")
+        print(f"DEBUG: Total sector codes: {len(sector_codes)}")
 
         for code in sector_codes:
             params = {
@@ -553,27 +556,42 @@ class JQuantsClient:
                             if "Code" not in record:
                                 record["Code"] = code
                         all_data.extend(sector_data)
-                        print(f"DEBUG: Code {code}: {len(sector_data)} records")
+                        success_count += 1
+                        print(f"DEBUG: Code {code}: {len(sector_data)} records ✅")
                     else:
-                        print(f"WARNING: Code {code}: No data in response. Keys: {list(data.keys())}")
+                        fail_count += 1
+                        failed_codes.append(code)
+                        print(f"WARNING: Code {code}: No data in response. Keys: {list(data.keys())} ❌")
 
                 elif response.status_code == 403:
-                    print(f"ERROR: Code {code}: 403 Forbidden (プラン制限)")
+                    fail_count += 1
+                    failed_codes.append(code)
+                    print(f"ERROR: Code {code}: 403 Forbidden (プラン制限) ❌")
                     # 1件でもエラーが出たら全体を中止
                     raise Exception(f"33業種指数の取得に失敗しました（403 Forbidden）。Standardプラン以上が必要です。")
                 else:
-                    print(f"WARNING: Code {code}: Status {response.status_code}")
+                    fail_count += 1
+                    failed_codes.append(code)
+                    print(f"WARNING: Code {code}: Status {response.status_code} ❌")
 
             except requests.exceptions.RequestException as e:
                 print(f"ERROR: Code {code}: {e}")
                 # エラーが出ても継続（次の業種を試す）
                 continue
 
+        # サマリー表示
+        print(f"\n{'='*60}")
+        print(f"33業種指数取得サマリー:")
+        print(f"  成功: {success_count}業種 ✅")
+        print(f"  失敗: {fail_count}業種 ❌")
+        print(f"  合計データ件数: {len(all_data)}件")
+        if failed_codes:
+            print(f"  失敗した業種コード: {failed_codes}")
+        print(f"{'='*60}\n")
+
         if not all_data:
             print("ERROR: No sector index data retrieved")
             return []
-
-        print(f"DEBUG: Total {len(all_data)} records from {len(sector_codes)} sectors")
 
         # サンプルデータを表示
         if all_data:

@@ -1722,6 +1722,10 @@ def render_sector_strength():
                         end_date.strftime("%Y-%m-%d")
                     )
                     st.success(f"✅ 期間リターン計算完了: {len(sector_returns)}業種、TOPIX={topix_return:.2f}%")
+
+                    # 33業種未満の場合は警告
+                    if len(sector_returns) < 33:
+                        st.warning(f"⚠️ 取得できたのは{len(sector_returns)}業種のみ（33業種中）。一部の業種でデータが存在しない可能性があります。")
                 except Exception as e:
                     st.error(f"❌ 期間リターン計算エラー: {e}")
                     import traceback
