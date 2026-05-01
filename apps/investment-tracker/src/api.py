@@ -338,11 +338,13 @@ class JQuantsClient:
         Returns:
             TOPIXデータのリスト [{"Date": "2026-04-30", "Close": 2800.0}, ...]
         """
-        url = f"{self.BASE_URL}/indices/topix"
+        # 新しいエンドポイント（33業種指数と同じ）
+        url = f"{self.BASE_URL}/indices/bars/daily"
 
         params = {
-            "start_dt": start_date.replace("-", ""),
-            "end_dt": end_date.replace("-", "")
+            "code": "0000",  # TOPIX
+            "from": start_date.replace("-", ""),  # YYYYMMDD形式
+            "to": end_date.replace("-", "")       # YYYYMMDD形式
         }
 
         try:
@@ -351,13 +353,16 @@ class JQuantsClient:
 
             data = response.json()
 
-            if "topix" in data and data["topix"]:
-                topix_data = data["topix"]
+            # レスポンスキーの候補: "daily_bars", "data"
+            if "daily_bars" in data and data["daily_bars"]:
+                topix_data = data["daily_bars"]
             elif "data" in data and data["data"]:
                 topix_data = data["data"]
             else:
+                print(f"WARNING: No TOPIX data found. Response keys: {list(data.keys())}")
                 return []
 
+            print(f"DEBUG: TOPIX data retrieved: {len(topix_data)} records")
             return topix_data
 
         except requests.exceptions.RequestException as e:
