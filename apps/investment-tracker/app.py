@@ -1083,11 +1083,8 @@ def render_trading_history():
 
 
 def render_valuation_analysis():
-    """バリュエーション分析を表示"""
-    from src.valuation_analysis_api import analyze_stock
-
+    """バリュエーション分析を表示（新機能：適正株価算出）"""
     st.title("📊 バリュエーション分析")
-    st.markdown("保有銘柄に対して4つのバリュエーション分析を実行します。")
 
     # APIクライアントチェック
     if not hasattr(st.session_state, 'client') or st.session_state.client is None:
@@ -1104,8 +1101,25 @@ def render_valuation_analysis():
         st.info("保有銘柄がありません。「📋 仮説登録」から銘柄を登録してください。")
         return
 
-    st.info(f"保有銘柄数: {len(hypotheses)}銘柄")
-    st.warning("⚠️ J-Quants APIからデータを取得します。銘柄数が多いと時間がかかる場合があります。")
+    # タブで新機能と旧機能を切り替え
+    tab1, tab2 = st.tabs(["💰 適正株価算出（新機能）", "📈 4指標分析（旧機能）"])
+
+    with tab1:
+        # ========================================
+        # 新機能: 適正株価算出（グロース株・バリュー株）
+        # ========================================
+        from src.fair_value_ui import render_fair_value_analysis
+        render_fair_value_analysis(st.session_state.client, hypotheses)
+
+    with tab2:
+        # ========================================
+        # 旧機能: 4指標分析
+        # ========================================
+        from src.valuation_analysis_api import analyze_stock
+
+        st.markdown("保有銘柄に対して4つのバリュエーション分析を実行します。")
+        st.info(f"保有銘柄数: {len(hypotheses)}銘柄")
+        st.warning("⚠️ J-Quants APIからデータを取得します。銘柄数が多いと時間がかかる場合があります。")
 
     # 分析実行ボタン
     if st.button("🔍 全銘柄を分析", type="primary", use_container_width=True):
