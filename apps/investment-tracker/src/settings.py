@@ -173,11 +173,26 @@ def migrate_additional_capital() -> Dict[str, Any]:
 
 def get_additional_investments() -> List[Dict]:
     """
-    追加投資履歴を取得
+    追加投資履歴を取得（Google Sheets優先、フォールバックでローカルJSON）
 
     Returns:
         [{"date": "YYYY-MM-DD", "amount": 金額}, ...]
     """
+    # Google Sheetsを試す
+    try:
+        import streamlit as st
+        from src.simple_gsheets_client import get_simple_gsheets_client
+
+        if st.secrets.get("USE_GSHEETS", False):
+            client = get_simple_gsheets_client()
+            if client:
+                investments = client.load_additional_investments()
+                if investments:
+                    return investments
+    except Exception:
+        pass
+
+    # フォールバック: ローカルJSON
     # マイグレーション
     settings = migrate_additional_capital()
 
@@ -186,7 +201,7 @@ def get_additional_investments() -> List[Dict]:
 
 def add_additional_investment(date: str, amount: float) -> bool:
     """
-    追加投資を記録
+    追加投資を記録（Google Sheets + ローカルJSON）
 
     Args:
         date: 追加投資日（YYYY-MM-DD）
@@ -195,6 +210,7 @@ def add_additional_investment(date: str, amount: float) -> bool:
     Returns:
         成功時True
     """
+    # ローカルJSONに保存
     settings = load_settings()
 
     if "additional_investments" not in settings:
@@ -211,12 +227,26 @@ def add_additional_investment(date: str, amount: float) -> bool:
         key=lambda x: x["date"]
     )
 
-    return save_settings(settings)
+    success = save_settings(settings)
+
+    # Google Sheetsにも保存
+    try:
+        import streamlit as st
+        from src.simple_gsheets_client import get_simple_gsheets_client
+
+        if st.secrets.get("USE_GSHEETS", False):
+            client = get_simple_gsheets_client()
+            if client:
+                client.save_additional_investments(settings["additional_investments"])
+    except Exception as e:
+        print(f"Google Sheetsへの保存に失敗: {e}")
+
+    return success
 
 
 def remove_additional_investment(index: int) -> bool:
     """
-    追加投資を削除
+    追加投資を削除（Google Sheets + ローカルJSON）
 
     Args:
         index: 削除するインデックス
@@ -231,7 +261,21 @@ def remove_additional_investment(index: int) -> bool:
 
     if 0 <= index < len(settings["additional_investments"]):
         settings["additional_investments"].pop(index)
-        return save_settings(settings)
+        success = save_settings(settings)
+
+        # Google Sheetsにも保存
+        try:
+            import streamlit as st
+            from src.simple_gsheets_client import get_simple_gsheets_client
+
+            if st.secrets.get("USE_GSHEETS", False):
+                client = get_simple_gsheets_client()
+                if client:
+                    client.save_additional_investments(settings["additional_investments"])
+        except Exception as e:
+            print(f"Google Sheetsへの保存に失敗: {e}")
+
+        return success
 
     return False
 

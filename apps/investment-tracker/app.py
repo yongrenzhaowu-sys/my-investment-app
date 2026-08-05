@@ -207,7 +207,7 @@ def render_sidebar():
     st.sidebar.title("📱 メニュー")
     menu = st.sidebar.radio(
         "選択してください",
-        ["📋 仮説登録", "📊 損益サマリー", "📜 売買履歴", "💰 資産推移分析", "🔄 セクターローテーション", "💪 セクター強弱判定"],
+        ["📋 仮説登録", "📊 損益サマリー", "📜 売買履歴", "💰 資産推移分析", "📈 オプション取引", "🔄 セクターローテーション", "💪 セクター強弱判定"],
         label_visibility="collapsed"
     )
 
@@ -218,6 +218,8 @@ def render_sidebar():
         st.session_state.current_view = "trading_history"
     elif menu == "💰 資産推移分析":
         st.session_state.current_view = "asset_tracking"
+    elif menu == "📈 オプション取引":
+        st.session_state.current_view = "option_trades"
     elif menu == "🔄 セクターローテーション":
         st.session_state.current_view = "sector_rotation"
     elif menu == "💪 セクター強弱判定":
@@ -279,6 +281,33 @@ def render_sidebar():
 
                 except Exception as e:
                     st.error(f"エラー: {e}")
+
+    # オプション取引記録
+    st.sidebar.divider()
+    st.sidebar.title("📝 オプション取引記録")
+
+    with st.sidebar.form("option_trade_form"):
+        option_date = st.date_input("取引日", value=datetime.now(), key="option_date")
+        option_description = st.text_input("取引内容", placeholder="プットオプション売却など", key="option_description")
+        option_profit = st.number_input("損益（円）", step=1000, format="%d", key="option_profit")
+
+        option_submitted = st.form_submit_button("記録", width="stretch")
+
+        if option_submitted:
+            from src.option_trades import add_option_trade
+
+            if not option_description:
+                st.error("取引内容を入力してください")
+            else:
+                if add_option_trade(
+                    date=option_date.strftime("%Y-%m-%d"),
+                    description=option_description,
+                    profit=option_profit
+                ):
+                    st.success("✅ オプション取引を記録しました")
+                    st.rerun()
+                else:
+                    st.error("記録に失敗しました")
 
     # ログアウトボタン
     st.sidebar.divider()
@@ -2087,6 +2116,91 @@ def render_sector_rotation():
         """)
 
 
+def render_option_trades():
+    """オプション取引画面を表示"""
+    from src.option_trades import load_option_trades, calculate_option_profit, delete_option_trade
+
+    st.title("📈 オプション取引")
+    st.markdown("簿外で行ったオプション取引の損益を記録・管理します。")
+
+    option_trades = load_option_trades()
+    total_option_profit = calculate_option_profit()
+
+    # サマリー
+    st.subheader("損益サマリー")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("取引回数", f"{len(option_trades)}回")
+    with col2:
+        profit_color = "normal" if total_option_profit >= 0 else "inverse"
+        st.metric(
+            "損益合計",
+            f"¥{total_option_profit:,.0f}",
+            delta=f"{total_option_profit:,.0f}",
+            delta_color=profit_color
+        )
+
+    # 取引履歴
+    if option_trades:
+        st.subheader("取引履歴")
+
+        # テーブル表示用にDataFrame作成
+        df_trades = pd.DataFrame(option_trades)
+        df_trades = df_trades[["date", "description", "profit", "created_at"]]
+        df_trades.columns = ["取引日", "取引内容", "損益（円）", "記録日時"]
+
+        # DataFrameを表示
+        st.dataframe(
+            df_trades,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        # 詳細と削除
+        st.markdown("---")
+        st.markdown("#### 取引の詳細・削除")
+
+        for trade in option_trades:
+            with st.expander(f"{trade['date']} - {trade['description']}"):
+                st.write(f"**損益**: ¥{trade['profit']:,.0f}")
+                st.write(f"**記録日時**: {trade['created_at']}")
+
+                if st.button(f"🗑️ この取引を削除", key=f"delete_option_{trade['id']}"):
+                    if delete_option_trade(trade['id']):
+                        st.success("✅ 削除しました")
+                        st.rerun()
+                    else:
+                        st.error("削除に失敗しました")
+    else:
+        st.info("まだオプション取引が記録されていません。サイドバーから記録してください。")
+
+    # 使い方ガイド
+    with st.expander("📖 使い方ガイド"):
+        st.markdown("""
+        ### オプション取引の記録方法
+
+        #### 1. サイドバーから記録
+        - **取引日**: オプション取引を行った日
+        - **取引内容**: 簡単な説明（例: プットオプション売却）
+        - **損益**: 利益はプラス、損失はマイナスで入力
+
+        #### 2. 履歴の確認
+        - メインページで取引履歴を一覧表示
+        - 損益合計を自動計算
+
+        #### 3. 取引の削除
+        - 各取引の詳細から削除可能
+
+        ### データの永続化
+        - Google Sheets環境: 自動的にクラウドに保存
+        - ローカル環境: JSONファイルに保存（`data/option_trades.json`）
+
+        ### 注意事項
+        - この記録は簿外管理用です
+        - 税務申告には別途正式な記録が必要です
+        """)
+
+
 def main():
     """メイン処理"""
     # 1. ログイン認証チェック
@@ -2136,6 +2250,9 @@ def main():
     # セクターローテーション分析表示
     elif st.session_state.get("current_view") == "sector_rotation":
         render_sector_rotation()
+    # オプション取引表示
+    elif st.session_state.get("current_view") == "option_trades":
+        render_option_trades()
     # セクター強弱判定表示
     elif st.session_state.get("current_view") == "sector_strength":
         render_sector_strength()

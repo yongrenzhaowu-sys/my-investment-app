@@ -18,7 +18,9 @@ class SimpleGSheetsClient:
         self,
         read_url: str,
         write_url: Optional[str] = None,
-        trading_history_read_url: Optional[str] = None
+        trading_history_read_url: Optional[str] = None,
+        additional_investments_read_url: Optional[str] = None,
+        option_trades_read_url: Optional[str] = None
     ):
         """
         初期化
@@ -27,10 +29,14 @@ class SimpleGSheetsClient:
             read_url: 保有銘柄シートのCSV公開URL
             write_url: Google Apps ScriptのウェブアプリURL（書き込み用）
             trading_history_read_url: 売買履歴シートのCSV公開URL
+            additional_investments_read_url: 追加資金シートのCSV公開URL
+            option_trades_read_url: オプション取引シートのCSV公開URL
         """
         self.read_url = read_url
         self.write_url = write_url
         self.trading_history_read_url = trading_history_read_url
+        self.additional_investments_read_url = additional_investments_read_url
+        self.option_trades_read_url = option_trades_read_url
 
     def load_hypotheses(self) -> List[Dict]:
         """
@@ -244,6 +250,170 @@ class SimpleGSheetsClient:
         except Exception as e:
             st.error(f"売買履歴の保存エラー: {e}")
 
+    def load_additional_investments(self) -> List[Dict]:
+        """
+        追加資金をGoogle Sheetsから読み込み
+
+        Returns:
+            追加資金のリスト [{"date": "YYYY-MM-DD", "amount": 金額}, ...]
+        """
+        if not self.additional_investments_read_url:
+            st.warning("追加資金のURL（ADDITIONAL_INVESTMENTS_READ_URL）が設定されていません")
+            return []
+
+        try:
+            # キャッシュ回避のため、URLにタイムスタンプを追加
+            import time
+            url_with_cache_buster = self.additional_investments_read_url + ("&" if "?" in self.additional_investments_read_url else "?") + f"_={int(time.time() * 1000)}"
+
+            # pandasでCSVとして読み込み
+            df = pd.read_csv(url_with_cache_buster)
+
+            # 空のシートの場合
+            if df.empty:
+                return []
+
+            # DataFrameを辞書のリストに変換
+            investments = []
+            for idx, row in df.iterrows():
+                try:
+                    # NaN値をスキップ
+                    if pd.isna(row.get("date")):
+                        continue
+
+                    investment = {
+                        "date": str(row["date"]),
+                        "amount": float(row["amount"])
+                    }
+                    investments.append(investment)
+
+                except Exception as e:
+                    # 個別行のエラーをログに記録してスキップ
+                    st.warning(f"追加資金の行{idx}のデータ読み込みエラー（スキップ）: {e}")
+                    continue
+
+            # 日付順にソート
+            return sorted(investments, key=lambda x: x["date"])
+
+        except Exception as e:
+            st.warning(f"追加資金の読み込みエラー: {e}")
+            return []
+
+    def save_additional_investments(self, investments: List[Dict]) -> None:
+        """
+        追加資金をGoogle Sheetsに保存
+
+        Args:
+            investments: 追加資金のリスト [{"date": "YYYY-MM-DD", "amount": 金額}, ...]
+        """
+        if not self.write_url:
+            st.error("書き込み用URLが設定されていません")
+            return
+
+        try:
+            # 追加資金をJSON形式でPOST
+            payload = {
+                "action": "save_additional_investments",
+                "data": investments
+            }
+
+            response = requests.post(
+                self.write_url,
+                json=payload,
+                timeout=10
+            )
+
+            if response.status_code != 200:
+                st.error(f"追加資金の保存エラー: {response.status_code}")
+            else:
+                st.success("追加資金を保存しました")
+
+        except Exception as e:
+            st.error(f"追加資金の保存エラー: {e}")
+
+    def load_option_trades(self) -> List[Dict]:
+        """
+        オプション取引をGoogle Sheetsから読み込み
+
+        Returns:
+            オプション取引のリスト
+        """
+        if not self.option_trades_read_url:
+            st.warning("オプション取引のURL（OPTION_TRADES_READ_URL）が設定されていません")
+            return []
+
+        try:
+            # キャッシュ回避のため、URLにタイムスタンプを追加
+            import time
+            url_with_cache_buster = self.option_trades_read_url + ("&" if "?" in self.option_trades_read_url else "?") + f"_={int(time.time() * 1000)}"
+
+            # pandasでCSVとして読み込み
+            df = pd.read_csv(url_with_cache_buster)
+
+            # 空のシートの場合
+            if df.empty:
+                return []
+
+            # DataFrameを辞書のリストに変換
+            trades = []
+            for idx, row in df.iterrows():
+                try:
+                    # NaN値をスキップ
+                    if pd.isna(row.get("id")):
+                        continue
+
+                    trade = {
+                        "id": str(row["id"]),
+                        "date": str(row["date"]),
+                        "description": str(row["description"]),
+                        "profit": float(row["profit"]),
+                        "created_at": str(row.get("created_at", ""))
+                    }
+                    trades.append(trade)
+
+                except Exception as e:
+                    # 個別行のエラーをログに記録してスキップ
+                    st.warning(f"オプション取引の行{idx}のデータ読み込みエラー（スキップ）: {e}")
+                    continue
+
+            # 日付順にソート（新しい順）
+            return sorted(trades, key=lambda x: x["date"], reverse=True)
+
+        except Exception as e:
+            st.warning(f"オプション取引の読み込みエラー: {e}")
+            return []
+
+    def save_option_trades(self, trades: List[Dict]) -> None:
+        """
+        オプション取引をGoogle Sheetsに保存
+
+        Args:
+            trades: オプション取引のリスト
+        """
+        if not self.write_url:
+            st.error("書き込み用URLが設定されていません")
+            return
+
+        try:
+            # オプション取引をJSON形式でPOST
+            payload = {
+                "action": "save_option_trades",
+                "data": trades
+            }
+
+            response = requests.post(
+                self.write_url,
+                json=payload,
+                timeout=10
+            )
+
+            if response.status_code != 200:
+                st.error(f"オプション取引の保存エラー: {response.status_code}")
+            # 成功時はメッセージを表示しない（頻繁に保存されるため）
+
+        except Exception as e:
+            st.error(f"オプション取引の保存エラー: {e}")
+
 
 def get_simple_gsheets_client() -> Optional[SimpleGSheetsClient]:
     """
@@ -257,6 +427,8 @@ def get_simple_gsheets_client() -> Optional[SimpleGSheetsClient]:
             read_url = st.secrets.get("SPREADSHEET_READ_URL")
             write_url = st.secrets.get("SPREADSHEET_WRITE_URL")
             trading_history_read_url = st.secrets.get("TRADING_HISTORY_READ_URL")
+            additional_investments_read_url = st.secrets.get("ADDITIONAL_INVESTMENTS_READ_URL")
+            option_trades_read_url = st.secrets.get("OPTION_TRADES_READ_URL")
 
             if not read_url:
                 st.error("SPREADSHEET_READ_URL が設定されていません")
@@ -265,7 +437,9 @@ def get_simple_gsheets_client() -> Optional[SimpleGSheetsClient]:
             st.session_state.simple_gsheets_client = SimpleGSheetsClient(
                 read_url=read_url,
                 write_url=write_url,
-                trading_history_read_url=trading_history_read_url
+                trading_history_read_url=trading_history_read_url,
+                additional_investments_read_url=additional_investments_read_url,
+                option_trades_read_url=option_trades_read_url
             )
 
         except Exception as e:
