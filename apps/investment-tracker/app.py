@@ -798,17 +798,46 @@ def render_profit_summary():
 
     st.divider()
 
-    # 合計損益
-    total_profit = calculate_total_profit(hypotheses)
-    st.subheader("🎯 合計損益")
+    # オプション取引損益
+    from src.option_trades import load_option_trades, calculate_option_profit
 
-    col1, col2, col3 = st.columns(3)
+    option_trades = load_option_trades()
+    option_profit = calculate_option_profit()
+    st.subheader("📊 オプション取引損益")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("取引回数", f"{len(option_trades)}回")
+    with col2:
+        profit_color = "normal" if option_profit >= 0 else "inverse"
+        st.metric("損益合計", f"¥{option_profit:,.0f}", delta_color=profit_color)
+
+    if option_trades:
+        with st.expander("📋 最近の取引（最新5件）"):
+            for trade in option_trades[:5]:
+                st.write(f"**{trade['date']}**: {trade['description']}")
+                st.write(f"損益: ¥{trade['profit']:,.0f}")
+                st.divider()
+
+    st.divider()
+
+    # 総合計損益（株式 + オプション）
+    total_profit = calculate_total_profit(hypotheses)
+    st.subheader("🎯 総合計損益")
+
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric("実現損益", f"¥{total_profit['realized']:,.0f}")
     with col2:
         st.metric("含み損益", f"¥{total_profit['unrealized']:,.0f}")
     with col3:
-        st.metric("合計損益", f"¥{total_profit['total']:,.0f}")
+        st.metric("オプション", f"¥{option_profit:,.0f}")
+    with col4:
+        grand_total = total_profit['total'] + option_profit
+        st.metric("総合計", f"¥{grand_total:,.0f}",
+                 delta_color="normal" if grand_total >= 0 else "inverse")
+
+    st.caption(f"💡 総合計 = 実現損益 + 含み損益 + オプション取引損益")
 
     st.divider()
 
@@ -911,8 +940,11 @@ def render_profit_summary():
         st.session_state.additional_investments
     )
 
-    # 総資産と損益を計算
-    total_assets = available['current_investment'] + available['available_capital']
+    # オプション取引の損益を取得
+    option_profit_for_summary = calculate_option_profit()
+
+    # 総資産と損益を計算（オプション取引を含む）
+    total_assets = available['current_investment'] + available['available_capital'] + option_profit_for_summary
     profit_loss = total_assets - available['total_capital']
     profit_loss_rate = (profit_loss / available['total_capital'] * 100) if available['total_capital'] > 0 else 0
 
@@ -938,11 +970,15 @@ def render_profit_summary():
     # 内訳表示
     st.write("**内訳：**")
 
-    col1, col2 = st.columns(2)
+    col1, col2, col_opt = st.columns(3)
     with col1:
         st.metric("保有証券", f"¥{available['current_investment']:,.0f}", help=f"{len(hypotheses)}銘柄保有中")
     with col2:
         st.metric("現金", f"¥{available['available_capital']:,.0f}", help="投資可能額")
+    with col_opt:
+        st.metric("オプション損益", f"¥{option_profit_for_summary:,.0f}",
+                 help="オプション取引の累計損益",
+                 delta_color="normal" if option_profit_for_summary >= 0 else "inverse")
 
     col3, col4, col5 = st.columns(3)
     with col3:
