@@ -101,6 +101,12 @@ def load_hypotheses():
         # ローカルJSONから読み込み
         hypotheses = load_hypotheses_local()
 
+    # 同一idの重複行を除去（後の行を優先）。重複するとボタンのkeyが衝突しStreamlitDuplicateElementKeyになる
+    deduped = list({h["id"]: h for h in hypotheses}.values())
+    if len(deduped) != len(hypotheses):
+        st.warning(f"重複したidの仮説を{len(hypotheses) - len(deduped)}件除外しました")
+    hypotheses = deduped
+
     # セッション状態にキャッシュ
     st.session_state.hypotheses_cache = hypotheses
     return hypotheses
